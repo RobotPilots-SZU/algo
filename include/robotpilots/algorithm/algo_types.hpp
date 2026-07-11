@@ -1,3 +1,14 @@
+/**
+ * @file algo_types.hpp
+ * @author cuteelaina (1105549920@qq.com)
+ * @brief 类型定义与数据接收视图
+ * @version 1.0
+ * @date 2026-05-28
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #ifndef ALGO_TYPES_HPP
 #define ALGO_TYPES_HPP
 

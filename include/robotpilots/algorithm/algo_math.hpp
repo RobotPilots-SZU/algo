@@ -1,3 +1,14 @@
+/**
+ * @file algo_math.hpp
+ * @author cuteelaina (1105549920@qq.com)
+ * @brief 数学工具：循环限幅、符号函数、滤波等
+ * @version 1.0
+ * @date 2026-05-28
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #ifndef ALGO_MATH_HPP
 #define ALGO_MATH_HPP
 

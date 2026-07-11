@@ -1,3 +1,14 @@
+/**
+ * @file algo_pid.cpp
+ * @author cuteelaina (1105549920@qq.com)
+ * @brief PID 控制器实现
+ * @version 1.0
+ * @date 2026-05-28
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "robotpilots/algorithm/algo_pid.hpp"
 
 

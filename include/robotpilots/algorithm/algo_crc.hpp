@@ -1,3 +1,14 @@
+/**
+ * @file algo_crc.hpp
+ * @author cuteelaina (1105549920@qq.com)
+ * @brief CRC8/CRC16 校验计算与验证
+ * @version 1.0
+ * @date 2026-05-28
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #ifndef ALGO_CRC_HPP
 #define ALGO_CRC_HPP
 

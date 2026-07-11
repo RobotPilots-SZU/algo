@@ -1,3 +1,14 @@
+/**
+ * @file algo_pid.hpp
+ * @author cuteelaina (1105549920@qq.com)
+ * @brief PID 控制器
+ * @version 1.0
+ * @date 2026-05-28
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #ifndef ALGO_PID_HPP
 #define ALGO_PID_HPP
 
