@@ -19,8 +19,9 @@
 // CONFIG_CMSIS_DSP_MATRIX=y
 // CONFIG_STD_CPP17=y
 #include "arm_math.h"
-#include <memory>
 #include <type_traits>
+#include <etl/algorithm.h>  
+#include <etl/vector.h>
 
     using ARM_MAT_INS = arm_matrix_instance_f32;
 
@@ -41,24 +42,25 @@ template <typename T>
 class Matrixt{
 public:
     // 默认构造
-    Matrixt() : rows_(0), cols_(0), data_(nullptr){
-        if constexpr (std::is_same_v<T,float>){
+    Matrixt() : rows_(0), cols_(0), data_({}){
+        if constexpr (etl::is_same_v<T,float>){
             arm_mat_init_f32(&arm_mat_, 0, 0, nullptr);
         }
     }
 
     // 根据传入的行 列维度构造
-    Matrixt(int rows, int cols) : rows_(rows), cols_(cols), data_(std::make_unique<T[]>(rows * cols)){  ///< 初始化列表
-        if constexpr (std::is_same_v<T, float>){
-            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t *)data_.get());    ///< 初始化矩阵实例
+    Matrixt(int rows, int cols) : rows_(rows), cols_(cols), data_({}){  ///< 初始化列表
+        data_.resize(rows * cols);
+        if constexpr (etl::is_same_v<T, float>){
+            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t *)data_.data());    ///< 初始化矩阵实例
         }
     }
 
     // 移动构造(右值引用)
     Matrixt(Matrixt&& mat) noexcept
-        : rows_(mat.rows_), cols_(mat.cols_), data_(std::move(mat.data_)) {     // 转移unique_ptr所有权
-        if constexpr (std::is_same_v<T, float>) {
-            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.get());
+        : rows_(mat.rows_), cols_(mat.cols_), data_(etl::move(mat.data_)) {     // 转移unique_ptr所有权
+        if constexpr (etl::is_same_v<T, float>) {
+            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.data());
         }
         mat.rows_ = 0;
         mat.cols_ = 0;
@@ -69,9 +71,9 @@ public:
         if (this != &mat) {
             rows_ = mat.rows_;
             cols_ = mat.cols_;
-            data_ = std::move(mat.data_);       // 转移unique_ptr所有权
-            if constexpr (std::is_same_v<T, float>) {
-                arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.get());
+            data_ = etl::move(mat.data_);       // 转移unique_ptr所有权
+            if constexpr (etl::is_same_v<T, float>) {
+                arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.data());
             }
             mat.rows_ = 0;
             mat.cols_ = 0;
@@ -82,16 +84,18 @@ public:
     // 拷贝构造函数
     Matrixt(const Matrixt<T>& mat) 
         : rows_(mat.rows_), cols_(mat.cols_),
-          data_(std::make_unique<T[]>(mat.rows_ * mat.cols_)) {
-        // 深拷贝数据
-        std::copy(mat.data_.get(), mat.data_.get() + mat.size(), data_.get());
+          data_({}) {
         
-        if constexpr (std::is_same_v<T, float>) {
-            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.get());
+        data_.resize(rows_ * cols_);
+        // 深拷贝数据
+        etl::copy(mat.data_.data(), mat.data_.data() + mat.size(), data_.data());
+        
+        if constexpr (etl::is_same_v<T, float>) {
+            arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t*)data_.data());
         }
     }
 
-    // 析构函数为默认 当data_超出作用域时会自动调用delete
+    // 析构函数为默认 矩阵占用纯粹的栈上空间，不需要手动管理
     ~Matrixt() = default;
 
     int rows(void) const {return this->rows_;}    ///< 返回行维度
@@ -114,12 +118,12 @@ public:
         if(this->rows_ != mat.rows_ || this->cols_ != mat.cols_){    ///< 如果维度不匹配就重新分配内存
             this->rows_ = mat.rows_;
             this->cols_ = mat.cols_;
-            this->data_ = std::make_unique<T[]>(rows_ * cols_);
+            this->data_.resize(rows_ * cols_);
         }
         // 复制数据
-        std::copy(mat.data_.get(),mat.data_.get() + (mat.rows_ * mat.cols_), this->data_.get());
-        if constexpr (std::is_same_v<T, float>) {
-            arm_mat_init_f32(&this->arm_mat_, this->rows_, this->cols_, (float32_t*)this->data_.get());
+        etl::copy(mat.data_.data(),mat.data_.data() + (mat.rows_ * mat.cols_), this->data_.data());
+        if constexpr (etl::is_same_v<T, float>) {
+            arm_mat_init_f32(&this->arm_mat_, this->rows_, this->cols_, (float32_t*)this->data_.data());
         }   // 更新arm_mat_
         return *this;
     }
@@ -135,7 +139,7 @@ public:
         }   // 确保维度匹配
         arm_status s;
         (void)s;
-        if constexpr (std::is_same_v<T, float>){    // 浮点矩阵用dsp库加速
+        if constexpr (etl::is_same_v<T, float>){    // 浮点矩阵用dsp库加速
             s = arm_mat_add_f32(&this->arm_mat_, mat.get_arm_mat(), &this->arm_mat_);
         }
         else{
@@ -155,7 +159,7 @@ public:
         if(rows_ != mat.rows_ || cols_ != mat.cols_){
             return *this;   // 维度不匹配则返回自身
         }
-        if constexpr (std::is_same_v<T, float>){    // 浮点矩阵用dsp库加速
+        if constexpr (etl::is_same_v<T, float>){    // 浮点矩阵用dsp库加速
             arm_status s = arm_mat_sub_f32(&this->arm_mat_, mat.get_arm_mat(), &this->arm_mat_);
             (void)s;
         }
@@ -174,7 +178,7 @@ public:
      */
     template <typename U>
     Matrixt<T>& operator*=(const U& val) {
-        if constexpr (std::is_same_v<T, float> && std::is_same_v<U, float>) {
+        if constexpr (etl::is_same_v<T, float> && etl::is_same_v<U, float>) {
             arm_status s = arm_mat_scale_f32(&this->arm_mat_, val, &this->arm_mat_);
             (void)s;
         } else {
@@ -196,7 +200,7 @@ public:
         if (std::abs(val) < eps) {
             return *this;   // 除零则返回自身
         }     ///< 确保分母大于零
-        if constexpr (std::is_same_v<T, float> && std::is_same_v<U, float>) {
+        if constexpr (etl::is_same_v<T, float> && etl::is_same_v<U, float>) {
             arm_status s = arm_mat_scale_f32(&this->arm_mat_, 1.0f / val, &this->arm_mat_);
             (void)s;
         } else {
@@ -218,7 +222,7 @@ public:
         } // 矩阵乘法维度检查
         Matrixt<T> res(this->rows_, mat.cols_);
 
-        if constexpr (std::is_same_v<T, float>) {
+        if constexpr (etl::is_same_v<T, float>) {
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
@@ -254,7 +258,7 @@ public:
         }
 
         Matrixt<T> res(this->rows_, mat.cols_);
-        if constexpr (std::is_same_v<T, float>) {
+        if constexpr (etl::is_same_v<T, float>) {
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat_inv.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
@@ -284,7 +288,7 @@ public:
         }    ///< 维度检查
         Matrixt<T> res(rows_, cols_);
 
-        if constexpr (std::is_same_v<T, float>) {           ///< 如果是浮点矩阵就调用dsp库的加速算法
+        if constexpr (etl::is_same_v<T, float>) {           ///< 如果是浮点矩阵就调用dsp库的加速算法
             arm_status s = arm_mat_add_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
@@ -308,7 +312,7 @@ public:
         }    ///< 维度检查
         Matrixt<T> res(rows_, cols_);
 
-        if constexpr (std::is_same_v<T, float>){            ///< 如果是浮点矩阵就调用dsp库的加速算法
+        if constexpr (etl::is_same_v<T, float>){            ///< 如果是浮点矩阵就调用dsp库的加速算法
             arm_status s = arm_mat_sub_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
@@ -362,8 +366,8 @@ public:
     // 获取元素总数
     size_t size() const { return rows_ * cols_; }
 
-    inline T* get_data() { return data_.get();}                ///< 获取可读可写的原始指针
-    inline const T* get_data() const { return data_.get();}    ///< 获取只可读的原始指针
+    inline T* get_data() { return data_.data();}                ///< 获取可读可写的原始指针
+    inline const T* get_data() const { return data_.data();}    ///< 获取只可读的原始指针
 
     inline ARM_MAT_INS* get_arm_mat() { return &arm_mat_; }    ///< 获取可读可写的原始指针
     inline const ARM_MAT_INS* get_arm_mat() const { return &arm_mat_; }    ///< 获取只可读的原始指针
@@ -371,7 +375,7 @@ public:
 private:
     int rows_;                  ///< 行维度
     int cols_;                  ///< 列维度
-    std::unique_ptr<T[]> data_; ///< 矩阵指针
+    etl::vector<T, 1024> data_; ///< 矩阵容器，无运行时内存分配，只占用栈空间
     ARM_MAT_INS arm_mat_;       ///< 使用官方库的矩阵实例 用于硬件加速
 
 };  // class Matrixt end
@@ -382,7 +386,7 @@ private:
 template<typename T>
 Matrixt<T> zeros(int rows, int cols){
     Matrixt<T> res(rows, cols);
-    std::fill(res.get_data(), res.get_data() + rows * cols, 0);
+    etl::fill(res.get_data(), res.get_data() + rows * cols, T(0));
     return res;
 }
 
@@ -390,7 +394,7 @@ Matrixt<T> zeros(int rows, int cols){
 template<typename T>
 Matrixt<T> ones(int rows, int cols){
     Matrixt<T> res(rows, cols);
-    std::fill(res.get_data(), res.get_data() + rows * cols, 1);
+    etl::fill(res.get_data(), res.get_data() + rows * cols, T(1));
     return res;
 }
 
@@ -402,7 +406,7 @@ Matrixt<T> ones(int rows, int cols){
 template<typename T>
 Matrixt<T> eye(int dims){
     Matrixt<T> res(dims, dims);
-    std::fill(res.get_data(), res.get_data() + dims * dims, 0);
+    etl::fill(res.get_data(), res.get_data() + dims * dims, T(0));
     for(int i = 0; i < dims; i++){
         res.get_data()[i * dims + i] = T(1);  // 把对角线元素改成1
     }
@@ -414,7 +418,7 @@ template<typename T>
 Matrixt<T> trans(const Matrixt<T>& mat) {
     Matrixt<T> res(mat.cols(), mat.rows());
 
-    if constexpr (std::is_same_v<T, float>) {
+    if constexpr (etl::is_same_v<T, float>) {
         arm_mat_trans_f32(mat.get_arm_mat(), res.get_arm_mat());
     } 
     else {
@@ -481,7 +485,7 @@ Matrixt<T> inv(const Matrixt<T>& mat) {
 
     Matrixt<T> res(dim, dim);
 
-    if constexpr(std::is_same_v<T, float>){
+    if constexpr(etl::is_same_v<T, float>){
         s = arm_mat_inverse_f32(mat.get_arm_mat(), res.get_arm_mat());
         if (s == ARM_MATH_SINGULAR) {   // 矩阵奇异
             return zeros<T>(dim, dim);  // 返回同维度零矩阵
