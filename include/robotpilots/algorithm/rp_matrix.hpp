@@ -375,7 +375,7 @@ public:
 private:
     int rows_;                  ///< 行维度
     int cols_;                  ///< 列维度
-    etl::vector<T, 1024> data_; ///< 矩阵容器，无运行时内存分配，只占用栈空间
+    etl::vector<T, 256> data_; ///< 矩阵容器，无运行时内存分配，只占用栈空间
     ARM_MAT_INS arm_mat_;       ///< 使用官方库的矩阵实例 用于硬件加速
 
 };  // class Matrixt end
