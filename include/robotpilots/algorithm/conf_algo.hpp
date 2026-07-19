@@ -13,9 +13,9 @@
 #define CONF_ALGO_HPP
 
 #include <stdint.h>
-#include <map>
-#include <vector>
 #include <cmath>
+#include <etl/vector.h>
+#include <etl/map.h>
 
 namespace robotpilots::algorithm {
 

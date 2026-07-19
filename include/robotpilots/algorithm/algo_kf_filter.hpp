@@ -31,10 +31,10 @@ public:
         uint8_t u_size = 0;                         ///< 输入值维度
         uint8_t x_size = 0;                         ///< 状态量维度
         bool use_auto_adjustment = false;               ///< 是否开启H, R, K矩阵的动态调整
-        std::vector<uint8_t> measurement_map;           ///< 观测量到状态量的映射
-        std::vector<float> measurement_degree;          ///< 观测量与状态量的缩放关系(用于构建H)
-        std::vector<float> r_diagonal_elements;         ///< R矩阵的对角线元素(用于构建R)
-        std::vector<float> state_min_variance;          ///< P矩阵对角线元素的最小值，防止过度收敛
+        etl::vector<uint8_t, 16> measurement_map;           ///< 观测量到状态量的映射
+        etl::vector<float, 16> measurement_degree;          ///< 观测量与状态量的缩放关系(用于构建H)
+        etl::vector<float, 16> r_diagonal_elements;         ///< R矩阵的对角线元素(用于构建R)
+        etl::vector<float, 16> state_min_variance;          ///< P矩阵对角线元素的最小值，防止过度收敛
     };
     
     // 卡尔曼滤波信息结构体+实例
@@ -136,10 +136,10 @@ protected:
     bool use_auto_adjustment_;                      ///< 是否启用动态调整
     uint8_t measurement_valid_num_;                 ///< 当前周期有效测量数
     Matrixt<float> measured_vector_;                ///< 原始测量向量(由传感器填充)
-    std::vector<uint8_t> measurement_map_;          ///< 观测量->状态量缩放倍数
-    std::vector<float> measurement_degree_;         ///< 观测矩阵H构建系数
-    std::vector<float> r_diagonal_elements_;        ///< 过程误差R构建系数
-    std::vector<float> state_min_variance_;         ///< P的最小方差
+    etl::vector<uint8_t, 16> measurement_map_;          ///< 观测量->状态量缩放倍数
+    etl::vector<float, 16> measurement_degree_;         ///< 观测矩阵H构建系数
+    etl::vector<float, 16> r_diagonal_elements_;        ///< 过程误差R构建系数
+    etl::vector<float, 16> state_min_variance_;         ///< P的最小方差
 
     void Algo_Kf_Xhatminus_Update(void);
     void Algo_Kf_Pminus_Update(void);

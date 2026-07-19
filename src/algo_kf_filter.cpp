@@ -177,7 +177,7 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
     }
 
     measurement_valid_num_ = 0;
-    std::vector<uint8_t> valid_indices;
+    etl::vector<uint8_t, 16> valid_indices;
     for (uint8_t i = 0; i < z_size_; ++i) {
         if (!std::isnan(measured_vector_[i][0])) {
             valid_indices.push_back(i);
@@ -191,8 +191,8 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
     H = Matrixt<float>(measurement_valid_num_, x_size_);
     R = Matrixt<float>(measurement_valid_num_, measurement_valid_num_);
 
-    std::fill(H.get_data(), H.get_data() + H.size(), 0.0f);
-    std::fill(R.get_data(), R.get_data() + R.size(), 0.0f);
+    etl::fill(H.get_data(), H.get_data() + H.size(), 0.0f);
+    etl::fill(R.get_data(), R.get_data() + R.size(), 0.0f);
 
     for (uint8_t i = 0; i < measurement_valid_num_; ++i) {
         uint8_t idx = valid_indices[i];

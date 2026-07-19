@@ -60,7 +60,7 @@ public:
     virtual ~CFilterBase() {UnregisterAlgorithm_();};
 };
 
-extern std::map<EAlgoID, CFilterBase*> AlgoIDMap;
+extern etl::map<EAlgoID, CFilterBase*, 16> AlgoIDMap;
 
 } // namespace robotpilots::algorithm
 
