@@ -21,7 +21,8 @@ namespace robotpilots::algorithm{
  * @retval EAppStatus
  * 
  */
-EAppStatus CAlgo_Kf::InitAlgo_(SFilterInitParam_Base &param){
+template<uint16_t N>
+EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
 
     // 检查param是否正确
     if (param.AlgoID != EAlgoID::ALGO_KF && param.AlgoID != EAlgoID::ALGO_IMU_EKF) {
@@ -46,25 +47,25 @@ EAppStatus CAlgo_Kf::InitAlgo_(SFilterInitParam_Base &param){
     }
     
     // 初始化卡尔曼黄金五式参与运算的矩阵
-    xhat = zeros<float>(x_size_, 1);
-    xhatMinus = zeros<float>(x_size_, 1);
-    F = zeros<float>(x_size_, x_size_);
-    FT = zeros<float>(x_size_, x_size_);
-    P = eye<float>(x_size_);
-    Pminus = zeros<float>(x_size_, x_size_);
-    Q = zeros<float>(x_size_, x_size_);
+    xhat = zeros<float, N>(x_size_, 1);
+    xhatMinus = zeros<float, N>(x_size_, 1);
+    F = zeros<float, N>(x_size_, x_size_);
+    FT = zeros<float, N>(x_size_, x_size_);
+    P = eye<float, N>(x_size_);
+    Pminus = zeros<float, N>(x_size_, x_size_);
+    Q = zeros<float, N>(x_size_, x_size_);
     if (u_size_ > 0) {      // 系统有输入的时候才初始化控制矩阵和输入向量
-        B = zeros<float>(x_size_, u_size_);
-        u = zeros<float>(u_size_, 1);
+        B = zeros<float, N>(x_size_, u_size_);
+        u = zeros<float, N>(u_size_, 1);
     }
-    H = zeros<float>(z_size_, x_size_);
-    HT = zeros<float>(x_size_, z_size_);
-    R = zeros<float>(z_size_, z_size_);
-    K = zeros<float>(x_size_, z_size_);
-    S = zeros<float>(z_size_, z_size_);
-    S_inv = zeros<float>(z_size_, z_size_);
-    z = zeros<float>(z_size_, 1);
-    measured_vector_ = zeros<float>(z_size_,1);
+    H = zeros<float, N>(z_size_, x_size_);
+    HT = zeros<float, N>(x_size_, z_size_);
+    R = zeros<float, N>(z_size_, z_size_);
+    K = zeros<float, N>(x_size_, z_size_);
+    S = zeros<float, N>(z_size_, z_size_);
+    S_inv = zeros<float, N>(z_size_, z_size_);
+    z = zeros<float, N>(z_size_, 1);
+    measured_vector_ = zeros<float, N>(z_size_,1);
     if (use_auto_adjustment_)
     {
     if (measurement_map_.size() != z_size_)return APP_ERROR;
@@ -81,7 +82,8 @@ EAppStatus CAlgo_Kf::InitAlgo_(SFilterInitParam_Base &param){
  * @brief 卡尔曼滤波更新
  * @retval EAppStatus
  */
-EAppStatus CAlgo_Kf::UpdateHandler_() {
+template<uint16_t N>
+EAppStatus CAlgo_Kf<N>::UpdateHandler_() {
     // 动态调整(若需要)
     Algo_Kf_Adjustment();
 
@@ -116,7 +118,8 @@ EAppStatus CAlgo_Kf::UpdateHandler_() {
  * @brief 更新先验估计
  * 
  */
-void CAlgo_Kf::Algo_Kf_Xhatminus_Update(){
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_Xhatminus_Update(){
     if (u_size_ > 0) {
     xhatMinus = F * xhat + B * u;
     } 
@@ -129,7 +132,8 @@ void CAlgo_Kf::Algo_Kf_Xhatminus_Update(){
  * @brief 更新先验估计协方差
  * 
  */
-void CAlgo_Kf::Algo_Kf_Pminus_Update(){
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_Pminus_Update(){
     Pminus = F * P * FT + Q;
 }
 
@@ -137,9 +141,10 @@ void CAlgo_Kf::Algo_Kf_Pminus_Update(){
  * @brief 更新卡尔曼增益
  * 
  */
-void CAlgo_Kf::Algo_Kf_K_Update(void){
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_K_Update(void){
     S = H * Pminus * HT + R;
-    S_inv = inv(S);
+    S_inv = inv<N>(S);
     K = Pminus * HT * S_inv;
 }
 
@@ -147,7 +152,8 @@ void CAlgo_Kf::Algo_Kf_K_Update(void){
  * @brief 更新后验最优估计
  * 
  */
-void CAlgo_Kf::Algo_Kf_Xhat_Update(void){
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_Xhat_Update(void){
     xhat = xhatMinus + K * (z - H * xhatMinus);
 }
 
@@ -155,10 +161,11 @@ void CAlgo_Kf::Algo_Kf_Xhat_Update(void){
  * @brief 更新后验估计协方差
  * 
  */
-void CAlgo_Kf::Algo_Kf_P_Update(void){
-    Matrixt<float>I;
-    I = eye<float>(x_size_);
-    Matrixt<float> A = I - K * H;
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_P_Update(void){
+    Matrixt<float, N>I;
+    I = eye<float, N>(x_size_);
+    Matrixt<float, N> A = I - K * H;
     P = A * Pminus * trans(A) + K * R * trans(K);
 }
 
@@ -167,7 +174,8 @@ void CAlgo_Kf::Algo_Kf_P_Update(void){
  * 
  * 
  */
-void CAlgo_Kf::Algo_Kf_Adjustment() {
+template<uint16_t N>
+void CAlgo_Kf<N>::Algo_Kf_Adjustment() {
     if (!use_auto_adjustment_) {
         // 不用动态调整，直接用原始尺寸
         z = measured_vector_;
@@ -187,9 +195,9 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
     if (measurement_valid_num_ == 0) return;
 
     // 动态重构 z, H, R
-    z = Matrixt<float>(measurement_valid_num_, 1);
-    H = Matrixt<float>(measurement_valid_num_, x_size_);
-    R = Matrixt<float>(measurement_valid_num_, measurement_valid_num_);
+    z = Matrixt<float, N>(measurement_valid_num_, 1);
+    H = Matrixt<float, N>(measurement_valid_num_, x_size_);
+    R = Matrixt<float, N>(measurement_valid_num_, measurement_valid_num_);
 
     etl::fill(H.get_data(), H.get_data() + H.size(), 0.0f);
     etl::fill(R.get_data(), R.get_data() + R.size(), 0.0f);
@@ -205,7 +213,7 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
         R[i][i] = r_diagonal_elements_[idx];
     }
     // 清空 measured_vector_
-    std::fill(measured_vector_.get_data(), measured_vector_.get_data() + measured_vector_.size(), NAN);
+    etl::fill(measured_vector_.get_data(), measured_vector_.get_data() + measured_vector_.size(), NAN);
     HT = trans(H);
 }
 
@@ -213,7 +221,8 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
  * @brief 更新观测矩阵
  * 
  */
-void CAlgo_Kf::Set_H(const Matrixt<float>& H_in){
+template<uint16_t N>
+void CAlgo_Kf<N>::Set_H(const Matrixt<float, N>& H_in){
     if (H_in.rows() == z_size_ && H_in.cols() == x_size_) {
         H = H_in;
         HT = trans(H);
@@ -224,7 +233,8 @@ void CAlgo_Kf::Set_H(const Matrixt<float>& H_in){
  * @brief 更新观测噪声协方差
  * 
  */
-void CAlgo_Kf::Set_R(const Matrixt<float>& R_in){
+template<uint16_t N>
+void CAlgo_Kf<N>::Set_R(const Matrixt<float, N>& R_in){
     if (R_in.rows() == z_size_ && R_in.cols() == z_size_) {
         R = R_in;
     }

@@ -45,10 +45,10 @@ protected:
     virtual EAppStatus CreateAlgorithmTask_() { return APP_ERROR; }
 
     // 注册算法
-    EAppStatus RegisterAlgorithm_();
+    EAppStatus RegisterAlgorithm_() { return APP_OK; }
 
     // 注销算法
-    EAppStatus UnregisterAlgorithm_();
+    EAppStatus UnregisterAlgorithm_() { return APP_OK; }
 
 public:
     EAlgoID AlgoID;     ///< 算法ID

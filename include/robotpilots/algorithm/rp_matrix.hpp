@@ -27,18 +27,18 @@
 
 namespace robotpilots::algorithm{
 
-template<typename T>
+template<typename T, uint16_t N>
 class Matrixt; // 前向声明矩阵类
 
-template<typename T>
-Matrixt<T> zeros(int rows, int cols);
+template<typename T, uint16_t N>
+Matrixt<T, N> zeros(int rows, int cols);
 
 /**
  * @brief 矩阵类模板
  * @param 元素类型T
  *
  */
-template <typename T>
+template <typename T, uint16_t N>
 class Matrixt{
 public:
     // 默认构造
@@ -67,7 +67,7 @@ public:
     }
 
     // 移动赋值(右值引用)
-    Matrixt<T>& operator=(Matrixt<T>&& mat) noexcept {
+    Matrixt<T, N>& operator=(Matrixt<T, N>&& mat) noexcept {
         if (this != &mat) {
             rows_ = mat.rows_;
             cols_ = mat.cols_;
@@ -82,7 +82,7 @@ public:
     }
 
     // 拷贝构造函数
-    Matrixt(const Matrixt<T>& mat) 
+    Matrixt(const Matrixt<T, N>& mat) 
         : rows_(mat.rows_), cols_(mat.cols_),
           data_({}) {
         
@@ -111,7 +111,7 @@ public:
      * @param 同维度矩阵mat的引用
      * 
      */
-    Matrixt<T>& operator=(const Matrixt<T>& mat) {
+    Matrixt<T, N>& operator=(const Matrixt<T, N>& mat) {
         if(this == &mat){
             return *this;   ///< 如果发现是自己给自己赋值那就直接返回
         }
@@ -133,7 +133,7 @@ public:
      * @param 同维度的矩阵mat
      * 
      */
-    Matrixt<T>& operator+=(const Matrixt<T>& mat) {
+    Matrixt<T, N>& operator+=(const Matrixt<T, N>& mat) {
         if(rows_ != mat.rows_ || cols_ != mat.cols_){
             return *this;   // 维度不匹配则返回自身
         }   // 确保维度匹配
@@ -155,7 +155,7 @@ public:
      * @param 同维度的矩阵mat
      * 
      */
-    Matrixt<T>& operator-=(const Matrixt<T>& mat) {
+    Matrixt<T, N>& operator-=(const Matrixt<T, N>& mat) {
         if(rows_ != mat.rows_ || cols_ != mat.cols_){
             return *this;   // 维度不匹配则返回自身
         }
@@ -177,7 +177,7 @@ public:
      * @param 乘数val
      */
     template <typename U>
-    Matrixt<T>& operator*=(const U& val) {
+    Matrixt<T, N>& operator*=(const U& val) {
         if constexpr (etl::is_same_v<T, float> && etl::is_same_v<U, float>) {
             arm_status s = arm_mat_scale_f32(&this->arm_mat_, val, &this->arm_mat_);
             (void)s;
@@ -195,7 +195,7 @@ public:
      * @param 除数val
      */
     template <typename U>
-    Matrixt<T>& operator/=(const U& val) {
+    Matrixt<T, N>& operator/=(const U& val) {
         const U eps = std::is_floating_point_v<U> ? U(1e-6) : U(0);
         if (std::abs(val) < eps) {
             return *this;   // 除零则返回自身
@@ -216,11 +216,11 @@ public:
      * @param 乘数矩阵mat
      * 
      */
-    Matrixt<T> operator*(const Matrixt<T>& mat) const {
+    Matrixt<T, N> operator*(const Matrixt<T, N>& mat) const {
         if(this->cols_ != mat.rows_){
-            return zeros<T>(0, 0);   // 维度不匹配则返回零矩阵
+            return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         } // 矩阵乘法维度检查
-        Matrixt<T> res(this->rows_, mat.cols_);
+        Matrixt<T, N> res(this->rows_, mat.cols_);
 
         if constexpr (etl::is_same_v<T, float>) {
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
@@ -246,18 +246,18 @@ public:
     * @param 除数矩阵mat 满足方阵且可逆
     *
     */
-    Matrixt<T> operator/(const Matrixt<T>& mat) const {
+    Matrixt<T, N> operator/(const Matrixt<T, N>& mat) const {
         if (mat.rows_ != mat.cols_ || this->cols_ != mat.rows_) {
-            return zeros<T>(0, 0); // 维度不匹配返回空矩阵
+            return zeros<T, N>(0, 0); // 维度不匹配返回空矩阵
         }
 
-        Matrixt<T> mat_inv = inv(mat);
+        Matrixt<T, N> mat_inv = inv(mat);
         // 若除数矩阵不可逆则返回恐惧真
         if (mat_inv.rows_ == 0 || mat_inv.cols_ == 0) {
-            return zeros<T>(0, 0);
+            return zeros<T, N>(0, 0);
         }
 
-        Matrixt<T> res(this->rows_, mat.cols_);
+        Matrixt<T, N> res(this->rows_, mat.cols_);
         if constexpr (etl::is_same_v<T, float>) {
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat_inv.get_arm_mat(), res.get_arm_mat());
             (void)s;
@@ -282,11 +282,11 @@ public:
      * @param 同维度的矩阵mat
      * 
      */
-    Matrixt<T> operator+(const Matrixt<T>& mat) const{
+    Matrixt<T, N> operator+(const Matrixt<T, N>& mat) const{
         if(rows_ != mat.rows_ || cols_ != mat.cols_){
-            return zeros<T>(0, 0);   // 维度不匹配则返回零矩阵
+            return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         }    ///< 维度检查
-        Matrixt<T> res(rows_, cols_);
+        Matrixt<T, N> res(rows_, cols_);
 
         if constexpr (etl::is_same_v<T, float>) {           ///< 如果是浮点矩阵就调用dsp库的加速算法
             arm_status s = arm_mat_add_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
@@ -306,11 +306,11 @@ public:
      * @param 同维度的矩阵mat
      * 
      */
-    Matrixt<T> operator-(const Matrixt<T>& mat) const{
+    Matrixt<T, N> operator-(const Matrixt<T, N>& mat) const{
         if(rows_ != mat.rows_ || cols_ != mat.cols_){
-            return zeros<T>(0, 0);   // 维度不匹配则返回零矩阵
+            return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         }    ///< 维度检查
-        Matrixt<T> res(rows_, cols_);
+        Matrixt<T, N> res(rows_, cols_);
 
         if constexpr (etl::is_same_v<T, float>){            ///< 如果是浮点矩阵就调用dsp库的加速算法
             arm_status s = arm_mat_sub_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
@@ -335,12 +335,12 @@ public:
     * @param block_col   子矩阵列数
     * 
     */
-    Matrixt<T> block(int start_row, int start_col, int block_row, int block_col) const {
+    Matrixt<T, N> block(int start_row, int start_col, int block_row, int block_col) const {
         
         if(start_row < 0 || start_col < 0 || start_row + block_row > this->rows_ || start_col + block_col > this->cols_){
-            return Matrixt<T>(0, 0);  // 边界检查，确保要提取的块在原矩阵内部，越界则返回0×0矩阵
+            return Matrixt<T, N>(0, 0);  // 边界检查，确保要提取的块在原矩阵内部，越界则返回0×0矩阵
         }
-        Matrixt<T> res(block_row, block_col);
+        Matrixt<T, N> res(block_row, block_col);
         for (int i = 0; i < block_row; ++i) {
             for (int j = 0; j < block_col; ++j) {
                 res[i][j] = (*this)[start_row + i][start_col + j];
@@ -351,12 +351,12 @@ public:
     }
 
     // 创建行向量
-    Matrixt<T> row(int row) const{
+    Matrixt<T, N> row(int row) const{
         return this->block(row, 0, 1, this->cols_);
     }
 
     // 创建列向量
-    Matrixt<T> col(int col) const{
+    Matrixt<T, N> col(int col) const{
         return this->block(0, col, this->rows_, 1);
     }
 
@@ -375,7 +375,7 @@ public:
 private:
     int rows_;                  ///< 行维度
     int cols_;                  ///< 列维度
-    etl::vector<T, 256> data_; ///< 矩阵容器，无运行时内存分配，只占用栈空间
+    etl::vector<T, N> data_; ///< 矩阵容器，无运行时内存分配，只占用栈空间
     ARM_MAT_INS arm_mat_;       ///< 使用官方库的矩阵实例 用于硬件加速
 
 };  // class Matrixt end
@@ -383,17 +383,17 @@ private:
 // 矩阵相关函数
 
 // 零矩阵
-template<typename T>
-Matrixt<T> zeros(int rows, int cols){
-    Matrixt<T> res(rows, cols);
+template<typename T, uint16_t N>
+Matrixt<T, N> zeros(int rows, int cols){
+    Matrixt<T, N> res(rows, cols);
     etl::fill(res.get_data(), res.get_data() + rows * cols, T(0));
     return res;
 }
 
 // 全1矩阵
-template<typename T>
-Matrixt<T> ones(int rows, int cols){
-    Matrixt<T> res(rows, cols);
+template<typename T, uint16_t N>
+Matrixt<T, N> ones(int rows, int cols){
+    Matrixt<T, N> res(rows, cols);
     etl::fill(res.get_data(), res.get_data() + rows * cols, T(1));
     return res;
 }
@@ -403,9 +403,9 @@ Matrixt<T> ones(int rows, int cols){
  * @param 方阵维度
  * 
  */
-template<typename T>
-Matrixt<T> eye(int dims){
-    Matrixt<T> res(dims, dims);
+template<typename T, uint16_t N>
+Matrixt<T, N> eye(int dims){
+    Matrixt<T, N> res(dims, dims);
     etl::fill(res.get_data(), res.get_data() + dims * dims, T(0));
     for(int i = 0; i < dims; i++){
         res.get_data()[i * dims + i] = T(1);  // 把对角线元素改成1
@@ -414,9 +414,9 @@ Matrixt<T> eye(int dims){
 }
 
 // 矩阵转置
-template<typename T>
-Matrixt<T> trans(const Matrixt<T>& mat) {
-    Matrixt<T> res(mat.cols(), mat.rows());
+template<typename T, uint16_t N>
+Matrixt<T, N> trans(const Matrixt<T, N>& mat) {
+    Matrixt<T, N> res(mat.cols(), mat.rows());
 
     if constexpr (etl::is_same_v<T, float>) {
         arm_mat_trans_f32(mat.get_arm_mat(), res.get_arm_mat());
@@ -433,8 +433,8 @@ Matrixt<T> trans(const Matrixt<T>& mat) {
 }
 
 // 求矩阵的迹
-template<typename T>
-float trace(const Matrixt<T>& mat) { 
+template<typename T, uint16_t N>
+float trace(const Matrixt<T, N>& mat) { 
     if(mat.rows() != mat.cols()){
         return 0; // 确保是方阵
     }
@@ -446,8 +446,8 @@ float trace(const Matrixt<T>& mat) {
 }
 
 // 求矩阵范数
-template<typename T>
-float norm(const Matrixt<T>& mat) {
+template<typename T, uint16_t N>
+float norm(const Matrixt<T, N>& mat) {
     if(!(std::is_floating_point_v<T>) || !(mat.rows() == 1 || mat.cols() == 1)){
         return 0;     // 确保为浮点类型且是向量（1行或1列）
     }
@@ -469,31 +469,31 @@ float norm(const Matrixt<T>& mat) {
  * @param 需要求逆的方阵mat
  * @retval 返回mat的逆矩阵 如果矩阵奇异则返回同维度的零矩阵
  */
-template <typename T>
-Matrixt<T> inv(const Matrixt<T>& mat) {
+template<typename T, uint16_t N>
+Matrixt<T, N> inv(const Matrixt<T, N>& mat) {
     const int dim = mat.rows();
     if(dim != mat.cols()){
-        return zeros<T>(0, 0); // 求逆操作只对方阵有效 否则返回零矩阵
+        return zeros<T, N>(0, 0); // 求逆操作只对方阵有效 否则返回零矩阵
     }
     arm_status s;   // 运算状态
     (void)s;
 
     // 仅支持浮点类型求逆，非浮点直接返回零矩阵
     if constexpr (!std::is_floating_point_v<T>) {
-        return zeros<T>(0, 0);
+        return zeros<T, N>(0, 0);
     }
 
-    Matrixt<T> res(dim, dim);
+    Matrixt<T, N> res(dim, dim);
 
     if constexpr(etl::is_same_v<T, float>){
         s = arm_mat_inverse_f32(mat.get_arm_mat(), res.get_arm_mat());
         if (s == ARM_MATH_SINGULAR) {   // 矩阵奇异
-            return zeros<T>(dim, dim);  // 返回同维度零矩阵
+            return zeros<T, N>(dim, dim);  // 返回同维度零矩阵
         }
     }
     else{   // double类型
         // 构造增广矩阵 [A|I]
-        Matrixt<T> ext_mat = zeros<T>(dim, 2 * dim);
+        Matrixt<T, N> ext_mat = zeros<T>(dim, 2 * dim);
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 ext_mat[i][j] = mat[i][j]; // 复制 A 到左半部分
@@ -518,7 +518,7 @@ Matrixt<T> inv(const Matrixt<T>& mat) {
             // 如果主元过小，则认为矩阵奇异，不可逆
             if (abs_max < eps) {
                 s = ARM_MATH_SINGULAR;
-                return zeros<T>(dim, dim); // 返回零矩阵表示失败
+                return zeros<T, N>(dim, dim); // 返回零矩阵表示失败
             }
 
             // 将主元所在行与当前行交换
@@ -563,12 +563,12 @@ Matrixt<T> inv(const Matrixt<T>& mat) {
  * @param 矩阵mat(注意一定得是3×1列向量)
  * @retval mat的反对称矩阵
  */
-template<typename T>
-Matrixt<T> hat(const Matrixt<T>& mat) {
+template<typename T, uint16_t N>
+Matrixt<T, N> hat(const Matrixt<T, N>& mat) {
   if(mat.rows() != 3 || mat.cols() != 1){
-    return zeros<T>(0, 0);   // 维度不匹配则返回零矩阵
+    return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
   }
-  Matrixt<T> res(3, 3);
+  Matrixt<T, N> res(3, 3);
     const T* data = mat.get_data();
     const T v0 = data[0];
     const T v1 = data[1];
@@ -587,13 +587,13 @@ Matrixt<T> hat(const Matrixt<T>& mat) {
  * @param 3x3的反对称矩阵mat
  * @return 对应的3x1向量
  */
-template<typename T>
-Matrixt<T> vee(const Matrixt<T>& mat) {
+template<typename T, uint16_t N>
+Matrixt<T, N> vee(const Matrixt<T, N>& mat) {
     if(mat.rows() != 3 || mat.cols() != 3){
-        return zeros<T>(0, 0); // 必须是3x3矩阵
+        return zeros<T, N>(0, 0); // 必须是3x3矩阵
     }
 
-    Matrixt<T> res(3, 1);
+    Matrixt<T, N> res(3, 1);
     
     res[0][0] = mat[2][1];
     res[1][0] = mat[0][2];
@@ -608,8 +608,8 @@ Matrixt<T> vee(const Matrixt<T>& mat) {
  * @param 矩阵mat1，mat2
  * @retval mat1和mat2叉乘结果
  */
-template<typename T>
-Matrixt<T> cross(const Matrixt<T>& mat1, const Matrixt<T>& mat2) {
+template<typename T, uint16_t N>
+Matrixt<T, N> cross(const Matrixt<T, N>& mat1, const Matrixt<T, N>& mat2) {
   return hat(mat1) * mat2;
 }
 

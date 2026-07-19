@@ -15,8 +15,6 @@ set(ALGO_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ALGO_SOURCES
     src/algo_crc.cpp
     src/algo_pid.cpp
-    src/algo_ekf_filter.cpp
-    src/algo_kf_filter.cpp
 )
 
 add_library(robotpilots_algorithm STATIC ${ALGO_SOURCES})
