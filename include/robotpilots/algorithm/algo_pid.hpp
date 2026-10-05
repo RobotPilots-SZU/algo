@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGO_PID_HPP
-#define ALGO_PID_HPP
+#pragma once
 
 #include <cmath>
 #include <cstdint>
@@ -24,13 +23,15 @@ namespace robotpilots::algorithm {
  * @brief PID算法类
  * 
  */
-class CAlgoPid{
+class CAlgoPid
+{
 public:
     /**
      * @brief 定义pid的误差计算模式的枚举变量
      * 
      */
-    enum class EPidErrorMode{
+    enum class EPidErrorMode
+    {
         NORMAL,      ///< 正常模式
         ANGLE,       ///< 角度模式(误差范围在-180.0f-180.0f)
         MACHINE,     ///< 机械模式(误差范围在-4096 - 4096(default))
@@ -40,7 +41,8 @@ public:
      * @brief 定义pid初始化结构体
      * 
      */
-    struct SAlgoInitParam_Pid{
+    struct SAlgoInitParam_Pid
+    {
         uint16_t tickRate = 1000; ///< 定时器频率(default:1000Hz)，用于可视化
         float_t kp = 0.0f; ///< 比例系数
         float_t ki = 0.0f; ///< 积分系数
@@ -82,7 +84,8 @@ private:
      * @brief 定义一个结构体，存放一个线程中pid的单次运算值
      * 
      */
-    struct SPidInfo{
+    struct SPidInfo
+    {
         float_t pOut = 0.0f; ///< 比例输出
         float_t iOut = 0.0f; ///< 积分输出
         float_t dOut = 0.0f; ///< 微分输出
@@ -138,4 +141,3 @@ private:
 
 } // namespace robotpilots::algorithm
 
-#endif // ALGO_PID_HPP

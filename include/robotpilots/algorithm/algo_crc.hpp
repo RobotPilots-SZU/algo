@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGO_CRC_HPP
-#define ALGO_CRC_HPP
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -96,4 +95,3 @@ uint16_t Crc16Calculate(const uint8_t *buffer, size_t len);
 
 } // namespace robotpilots::algorithm
 
-#endif // ALGO_CRC_HPP

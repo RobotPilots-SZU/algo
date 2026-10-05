@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef ALGO_FILTER_COMMON_HPP
-#define ALGO_FILTER_COMMON_HPP
+#pragma once
 
 #include "conf_algo.hpp"
 
@@ -20,7 +19,8 @@ namespace robotpilots::algorithm{
  * @brief 滤波器基类
  * 
  */
-class CFilterBase{
+class CFilterBase
+{
 protected:
 
     /**
@@ -29,14 +29,14 @@ protected:
      */
     struct SFilterInitParam_Base
     {
-	    EAlgoID AlgoID = EAlgoID::ALGO_NULL; ///< 算法ID
+        EAlgoID AlgoID = EAlgoID::ALGO_NULL; ///< 算法ID
     };
 
     // 初始化
-    virtual EAppStatus InitAlgo_(SFilterInitParam_Base &param) {return APP_ERROR;}
+    virtual EAppStatus InitAlgo_(SFilterInitParam_Base &param) = 0;
 
     // 更新处理
-    virtual EAppStatus UpdateHandler_() {return APP_ERROR;}
+    virtual EAppStatus UpdateHandler_() = 0;
 
 public:
     // 算法构造函数
@@ -47,5 +47,3 @@ public:
 };
 
 } // namespace robotpilots::algorithm
-
-#endif // ALGO_FILTER_COMMON_HPP

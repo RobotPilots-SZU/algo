@@ -21,16 +21,17 @@ namespace robotpilots::algorithm {
  * @param pStructInitParam 
  * @return EAppStatus 
  */
-EAppStatus CAlgoPid::InitPID(const SAlgoInitParam_Pid *pStructInitParam){
+EAppStatus CAlgoPid::InitPID(const SAlgoInitParam_Pid *pStructInitParam)
+{
     // 检查参数是否为空
-    if(pStructInitParam == nullptr) return APP_ERROR;
+    if (pStructInitParam == nullptr) return APP_ERROR;
     // 检查状态
-    if(PidStatus == APP_BUSY) return APP_ERROR;
+    if (PidStatus == APP_BUSY) return APP_ERROR;
 
     auto &param = *pStructInitParam;
 
     // 先检查：tickRate 不能为 0，否则积分计算会除零
-    if(param.tickRate == 0) return APP_ERROR;
+    if (param.tickRate == 0) return APP_ERROR;
 
     // 初始化pid参数
     tickRate_ = param.tickRate;
@@ -60,12 +61,13 @@ EAppStatus CAlgoPid::InitPID(const SAlgoInitParam_Pid *pStructInitParam){
  * 
  */
 float_t CAlgoPid::UpdatePidController(const float_t &target, 
-                                      const float_t &measure){
+                                      const float_t &measure)
+                                      {
     float_t output = 0.0f;
 
     // 检查状态
-    if(PidStatus == APP_RESET) return output;
-    if(PidStatus == APP_BUSY) return output;
+    if (PidStatus == APP_RESET) return output;
+    if (PidStatus == APP_BUSY) return output;
 
     // 计算误差
     auto error = CalcError_(target, measure);
@@ -80,9 +82,10 @@ float_t CAlgoPid::UpdatePidController(const float_t &target,
  * @brief 重置PID控制器
  * 
  */
-EAppStatus CAlgoPid::ResetPidController(){
+EAppStatus CAlgoPid::ResetPidController()
+{
     // 仅在计算中(BUSY)禁止重置；RESET/OK 状态都允许
-    if(PidStatus == APP_BUSY) return APP_ERROR;
+    if (PidStatus == APP_BUSY) return APP_ERROR;
 
     // 真正清零内部状态：积分、微分、上次误差、输出、超时/恢复计数
     SPidInfo_ = SPidInfo{};
@@ -98,11 +101,12 @@ EAppStatus CAlgoPid::ResetPidController(){
  * @return DataBuffer<float_t> 
  */
 float_t CAlgoPid::CalcError_(const float_t &target, 
-                             const float_t &measure){
+                             const float_t &measure)
+                             {
     float_t error = 0.0f;
 
     // 检查状态
-    if(PidStatus == APP_RESET) return error;
+    if (PidStatus == APP_RESET) return error;
 
     switch (errorMode_)
     {
@@ -113,7 +117,8 @@ float_t CAlgoPid::CalcError_(const float_t &target,
         case EPidErrorMode::ANGLE:
                 error = target - measure;
                 // 将误差限制在-180 - 180内,并处理经过零点情况
-                if(std::fabs(error) > 180.0f){
+                if (std::fabs(error) > 180.0f)
+                {
                     error -= std::copysign(360.0f, error);
                 }
             break;
@@ -121,7 +126,8 @@ float_t CAlgoPid::CalcError_(const float_t &target,
         case EPidErrorMode::MACHINE:
                 error = target - measure;
                 // 将误差限制在-4096到4096内,并处理经过零点情况
-                if(std::fabs(error) > static_cast<float_t>(MachineModeErrorRange_) / 2){
+                if (std::fabs(error) > static_cast<float_t>(MachineModeErrorRange_) / 2)
+                {
                     error -= std::copysign(static_cast<float_t>(MachineModeErrorRange_), error);
                 }
             break;
@@ -140,19 +146,22 @@ float_t CAlgoPid::CalcError_(const float_t &target,
  * @param threadInfo 
  * @return float_t 
  */
-float_t CAlgoPid::CalcOutput_(const float_t error, SPidInfo &info){
+float_t CAlgoPid::CalcOutput_(const float_t error, SPidInfo &info)
+{
 
     
 
     // 检查死区
-    if(inputDeadband_ > 0.0f && std::fabs(error) < inputDeadband_){
+    if (inputDeadband_ > 0.0f && std::fabs(error) < inputDeadband_)
+    {
         info.integral = 0.0f;
         info.lastError = 0.0f;
         return 0.0f;
     }
 
     // 计算积分分离
-    if(input_integralSeparation_ > 0.0f && std::fabs(error) > input_integralSeparation_){
+    if (input_integralSeparation_ > 0.0f && std::fabs(error) > input_integralSeparation_)
+    {
         info.integral = 0.0f;
     }
     else
@@ -178,21 +187,25 @@ float_t CAlgoPid::CalcOutput_(const float_t error, SPidInfo &info){
     info.output = std::clamp(info.output, -maxOutput_, maxOutput_);
 
     // 可持续输出
-    if(sustainable_output_ > 0.0f){
+    if (sustainable_output_ > 0.0f)
+    {
         // 注意：output == 0 时此处 sign 取 -1（零无方向）。当前无实际影响，
         // 因 output==0 时 |output| > sustainable_output_ 恒为 false，不会进入限幅分支。
         int8_t sign = info.output > 0.0f ? 1 : -1;
         // 计算可持续时间
-        if(std::fabs(info.output) > sustainable_output_){
+        if (std::fabs(info.output) > sustainable_output_)
+        {
             // 注意：Time_exceed 为 uint32_t，若 sustainable_time_ 配为 UINT32_MAX
             // 会溢出回绕导致限幅永不触发；当前未做饱和处理。
             info.Time_exceed++;
-            if(info.Time_exceed >= sustainable_time_){
+            if (info.Time_exceed >= sustainable_time_)
+            {
                 info.output = sustainable_output_ * sign;
                 info.is_limit = true;
             }
         }
-        else {
+        else
+        {
             if (info.Time_exceed > 0) {
                 info.Time_exceed--;
             }

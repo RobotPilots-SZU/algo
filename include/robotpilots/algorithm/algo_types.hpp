@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGO_TYPES_HPP
-#define ALGO_TYPES_HPP
+#pragma once
 
 #include <etl/span.h>
 
@@ -23,4 +22,3 @@ template<typename T> using DataReceiver = etl::span<const T>;
 
 }   // namespace robotpilots::algorithm
 
-#endif // ROBOTPILOTS_ALGORITHM_TYPES_HPP

@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef RP_MATRIX_HPP
-#define RP_MATRIX_HPP
+#pragma once
 
 #include <cmath>
 #include <cstddef>
@@ -40,11 +39,14 @@ Matrixt<T, N> zeros(int rows, int cols);
  *
  */
 template <typename T, uint16_t N>
-class Matrixt{
+class Matrixt
+{
 public:
     // 默认构造
-    Matrixt() : rows_(0), cols_(0), data_({}){
-        if constexpr (etl::is_same_v<T,float>){
+    Matrixt() : rows_(0), cols_(0), data_({})
+    {
+        if constexpr (etl::is_same_v<T, float>)
+        {
             arm_mat_init_f32(&arm_mat_, 0, 0, nullptr);
         }
     }
@@ -55,10 +57,13 @@ public:
         if (rows < 0 || cols < 0 || static_cast<size_t>(rows) * cols > N) {
             rows_ = 0;
             cols_ = 0;
-        } else {
+        }
+        else
+        {
             data_.resize(rows * cols);
         }
-        if constexpr (etl::is_same_v<T, float>){
+        if constexpr (etl::is_same_v<T, float>)
+        {
             arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t *)data_.data());    ///< 初始化矩阵实例
         }
     }
@@ -110,8 +115,14 @@ public:
 
     /***************** 符号重载start ********************/
     // 取矩阵元素
-    T* operator[](const int& row) { return &this->data_[row * cols_]; }
-    const T* operator[](const int& row) const { return &this->data_[row * cols_]; }
+    T* operator[](const int& row)
+    {
+        return &this->data_[row * cols_];
+    }
+    const T* operator[](const int& row) const
+    {
+        return &this->data_[row * cols_];
+    }
 
     /**
      * @brief 赋值运算符重载(拷贝赋值)
@@ -119,10 +130,11 @@ public:
      * 
      */
     Matrixt<T, N>& operator=(const Matrixt<T, N>& mat) {
-        if(this == &mat){
+        if (this == &mat)
+        {
             return *this;   ///< 如果发现是自己给自己赋值那就直接返回
         }
-        if(this->rows_ != mat.rows_ || this->cols_ != mat.cols_){    ///< 如果维度不匹配就重新分配内存
+        if (this->rows_ != mat.rows_ || this->cols_ != mat.cols_){    ///< 如果维度不匹配就重新分配内存
             this->rows_ = mat.rows_;
             this->cols_ = mat.cols_;
             this->data_.resize(rows_ * cols_);
@@ -141,7 +153,8 @@ public:
      * 
      */
     Matrixt<T, N>& operator+=(const Matrixt<T, N>& mat) {
-        if(rows_ != mat.rows_ || cols_ != mat.cols_){
+        if (rows_ != mat.rows_ || cols_ != mat.cols_)
+        {
             return *this;   // 维度不匹配则返回自身
         }   // 确保维度匹配
         arm_status s;
@@ -150,7 +163,8 @@ public:
             s = arm_mat_add_f32(&this->arm_mat_, mat.get_arm_mat(), &this->arm_mat_);
         }
         else{
-            for(int i = 0;i < rows_ * cols_; i++){
+            for (int i = 0;i < rows_ * cols_; i++)
+            {
                 this->get_data()[i] += mat.get_data()[i];
             }
         }
@@ -163,7 +177,8 @@ public:
      * 
      */
     Matrixt<T, N>& operator-=(const Matrixt<T, N>& mat) {
-        if(rows_ != mat.rows_ || cols_ != mat.cols_){
+        if (rows_ != mat.rows_ || cols_ != mat.cols_)
+        {
             return *this;   // 维度不匹配则返回自身
         }
         if constexpr (etl::is_same_v<T, float>){    // 浮点矩阵用dsp库加速
@@ -171,7 +186,8 @@ public:
             (void)s;
         }
         else{
-            for(int i = 0;i < rows_ * cols_; i++){
+            for (int i = 0;i < rows_ * cols_; i++)
+            {
                 this->get_data()[i] -= mat.get_data()[i];
             }
         }
@@ -188,7 +204,9 @@ public:
         if constexpr (etl::is_same_v<T, float> && etl::is_same_v<U, float>) {
             arm_status s = arm_mat_scale_f32(&this->arm_mat_, val, &this->arm_mat_);
             (void)s;
-        } else {
+        }
+        else
+        {
             for (int i = 0; i < rows_ * cols_; i++) {
                 data_[i] *= val;
             }
@@ -210,7 +228,9 @@ public:
         if constexpr (etl::is_same_v<T, float> && etl::is_same_v<U, float>) {
             arm_status s = arm_mat_scale_f32(&this->arm_mat_, 1.0f / val, &this->arm_mat_);
             (void)s;
-        } else {
+        }
+        else
+        {
             for (int i = 0; i < rows_ * cols_; i++) {
                 data_[i] /= val;
             }
@@ -224,7 +244,8 @@ public:
      * 
      */
     Matrixt<T, N> operator*(const Matrixt<T, N>& mat) const {
-        if(this->cols_ != mat.rows_){
+        if (this->cols_ != mat.rows_)
+        {
             return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         } // 矩阵乘法维度检查
         Matrixt<T, N> res(this->rows_, mat.cols_);
@@ -233,7 +254,8 @@ public:
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
-        else {
+        else
+        {
             // 通用矩阵乘法 (i, j, k)
             for (int i = 0; i < res.rows_; i++) {
                 for (int j = 0; j < res.cols_; j++) {
@@ -269,7 +291,8 @@ public:
             arm_status s = arm_mat_mult_f32(&this->arm_mat_, mat_inv.get_arm_mat(), res.get_arm_mat());
             (void)s;
         }
-        else {
+        else
+        {
             // 矩阵乘法实现相除
             for (int i = 0; i < res.rows_; i++) {
                 for (int j = 0; j < res.cols_; j++) {
@@ -290,7 +313,8 @@ public:
      * 
      */
     Matrixt<T, N> operator+(const Matrixt<T, N>& mat) const{
-        if(rows_ != mat.rows_ || cols_ != mat.cols_){
+        if (rows_ != mat.rows_ || cols_ != mat.cols_)
+        {
             return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         }    ///< 维度检查
         Matrixt<T, N> res(rows_, cols_);
@@ -300,7 +324,8 @@ public:
             (void)s;
         }
         else{
-            for(int i = 0; i < rows_ * cols_; i++){
+            for (int i = 0; i < rows_ * cols_; i++)
+            {
                 res.get_data()[i] = this->get_data()[i] + mat.get_data()[i];    ///< 用for循环加法
             }
         }
@@ -314,7 +339,8 @@ public:
      * 
      */
     Matrixt<T, N> operator-(const Matrixt<T, N>& mat) const{
-        if(rows_ != mat.rows_ || cols_ != mat.cols_){
+        if (rows_ != mat.rows_ || cols_ != mat.cols_)
+        {
             return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
         }    ///< 维度检查
         Matrixt<T, N> res(rows_, cols_);
@@ -324,7 +350,8 @@ public:
             (void)s;
         }
         else{
-            for(int i = 0; i < rows_ * cols_; i++){
+            for (int i = 0; i < rows_ * cols_; i++)
+            {
                 res.get_data()[i] = this->get_data()[i] - mat.get_data()[i];    ///< 用for循环加法
             }
         }
@@ -344,7 +371,8 @@ public:
     */
     Matrixt<T, N> block(int start_row, int start_col, int block_row, int block_col) const {
         
-        if(start_row < 0 || start_col < 0 || start_row + block_row > this->rows_ || start_col + block_col > this->cols_){
+        if (start_row < 0 || start_col < 0 || start_row + block_row > this->rows_ || start_col + block_col > this->cols_)
+        {
             return Matrixt<T, N>(0, 0);  // 边界检查，确保要提取的块在原矩阵内部，越界则返回0×0矩阵
         }
         Matrixt<T, N> res(block_row, block_col);
@@ -368,7 +396,10 @@ public:
     }
 
     // 判断是否为空矩阵
-    bool empty() const { return rows_ == 0 || cols_ == 0; }
+    bool empty() const
+    {
+        return rows_ == 0 || cols_ == 0;
+    }
 
     // 获取元素总数
     size_t size() const { return rows_ * cols_; }
@@ -391,7 +422,8 @@ private:
 
 // 零矩阵
 template<typename T, uint16_t N>
-Matrixt<T, N> zeros(int rows, int cols){
+Matrixt<T, N> zeros(int rows, int cols)
+{
     Matrixt<T, N> res(rows, cols);
     etl::fill(res.get_data(), res.get_data() + rows * cols, T(0));
     return res;
@@ -399,7 +431,8 @@ Matrixt<T, N> zeros(int rows, int cols){
 
 // 全1矩阵
 template<typename T, uint16_t N>
-Matrixt<T, N> ones(int rows, int cols){
+Matrixt<T, N> ones(int rows, int cols)
+{
     Matrixt<T, N> res(rows, cols);
     etl::fill(res.get_data(), res.get_data() + rows * cols, T(1));
     return res;
@@ -411,10 +444,12 @@ Matrixt<T, N> ones(int rows, int cols){
  * 
  */
 template<typename T, uint16_t N>
-Matrixt<T, N> eye(int dims){
+Matrixt<T, N> eye(int dims)
+{
     Matrixt<T, N> res(dims, dims);
     etl::fill(res.get_data(), res.get_data() + dims * dims, T(0));
-    for(int i = 0; i < dims; i++){
+    for (int i = 0; i < dims; i++)
+    {
         res.get_data()[i * dims + i] = T(1);  // 把对角线元素改成1
     }
     return res;
@@ -428,7 +463,8 @@ Matrixt<T, N> trans(const Matrixt<T, N>& mat) {
     if constexpr (etl::is_same_v<T, float>) {
         arm_mat_trans_f32(mat.get_arm_mat(), res.get_arm_mat());
     } 
-    else {
+    else
+    {
         // 非浮点类型手动转置
         for (int i = 0; i < mat.rows(); ++i) {
             for (int j = 0; j < mat.cols(); ++j) {
@@ -442,11 +478,13 @@ Matrixt<T, N> trans(const Matrixt<T, N>& mat) {
 // 求矩阵的迹
 template<typename T, uint16_t N>
 float trace(const Matrixt<T, N>& mat) { 
-    if(mat.rows() != mat.cols()){
+    if (mat.rows() != mat.cols())
+    {
         return 0; // 确保是方阵
     }
     float res = 0;
-    for(int i = 0; i < mat.rows(); i++){
+    for (int i = 0; i < mat.rows(); i++)
+    {
         res += mat[i][i];
     }
     return res;
@@ -455,7 +493,8 @@ float trace(const Matrixt<T, N>& mat) {
 // 求矩阵范数
 template<typename T, uint16_t N>
 float norm(const Matrixt<T, N>& mat) {
-    if(!(std::is_floating_point_v<T>) || !(mat.rows() == 1 || mat.cols() == 1)){
+    if (!(std::is_floating_point_v<T>) || !(mat.rows() == 1 || mat.cols() == 1))
+    {
         return 0;     // 确保为浮点类型且是向量（1行或1列）
     }
     
@@ -479,7 +518,8 @@ float norm(const Matrixt<T, N>& mat) {
 template<typename T, uint16_t N>
 Matrixt<T, N> inv(const Matrixt<T, N>& mat) {
     const int dim = mat.rows();
-    if(dim != mat.cols()){
+    if (dim != mat.cols())
+    {
         return zeros<T, N>(0, 0); // 求逆操作只对方阵有效 否则返回零矩阵
     }
     arm_status s;   // 运算状态
@@ -492,7 +532,8 @@ Matrixt<T, N> inv(const Matrixt<T, N>& mat) {
 
     Matrixt<T, N> res(dim, dim);
 
-    if constexpr(etl::is_same_v<T, float>){
+    if constexpr(etl::is_same_v<T, float>)
+    {
         s = arm_mat_inverse_f32(mat.get_arm_mat(), res.get_arm_mat());
         if (s == ARM_MATH_SINGULAR) {   // 矩阵奇异
             return zeros<T, N>(dim, dim);  // 返回同维度零矩阵
@@ -572,7 +613,8 @@ Matrixt<T, N> inv(const Matrixt<T, N>& mat) {
  */
 template<typename T, uint16_t N>
 Matrixt<T, N> hat(const Matrixt<T, N>& mat) {
-  if(mat.rows() != 3 || mat.cols() != 1){
+  if (mat.rows() != 3 || mat.cols() != 1)
+  {
     return zeros<T, N>(0, 0);   // 维度不匹配则返回零矩阵
   }
   Matrixt<T, N> res(3, 3);
@@ -581,9 +623,15 @@ Matrixt<T, N> hat(const Matrixt<T, N>& mat) {
     const T v1 = data[1];
     const T v2 = data[2];
 
-    res[0][0] = 0;  res[0][1] = -v2; res[0][2] = v1;
-    res[1][0] = v2; res[1][1] = 0;   res[1][2] = -v0;
-    res[2][0] = -v1;res[2][1] = v0;  res[2][2] = 0;
+    res[0][0] = 0;
+    res[0][1] = -v2;
+    res[0][2] = v1;
+    res[1][0] = v2;
+    res[1][1] = 0;
+    res[1][2] = -v0;
+    res[2][0] = -v1;
+    res[2][1] = v0;
+    res[2][2] = 0;
 
     return res;
 }
@@ -596,7 +644,8 @@ Matrixt<T, N> hat(const Matrixt<T, N>& mat) {
  */
 template<typename T, uint16_t N>
 Matrixt<T, N> vee(const Matrixt<T, N>& mat) {
-    if(mat.rows() != 3 || mat.cols() != 3){
+    if (mat.rows() != 3 || mat.cols() != 3)
+    {
         return zeros<T, N>(0, 0); // 必须是3x3矩阵
     }
 
@@ -623,4 +672,3 @@ Matrixt<T, N> cross(const Matrixt<T, N>& mat1, const Matrixt<T, N>& mat2) {
 
 } // namespace robotpilots::algorithm
 
-#endif // RP_MATRIX_HPP

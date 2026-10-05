@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGORITHM_HPP
-#define ALGORITHM_HPP
+#pragma once
 
 // 包含所有公共子模块
 #include "algorithm/conf_algo.hpp"
@@ -22,5 +21,3 @@
 #include "algorithm/algo_filter_common.hpp"
 #include "algorithm/algo_kf_filter.hpp"
 #include "algorithm/algo_ekf_filter.hpp"
-
-#endif  // ALGORITHM_HPP

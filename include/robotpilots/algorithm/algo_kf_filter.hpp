@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef ALGO_KF_FILTER_HPP
-#define ALGO_KF_FILTER_HPP
+#pragma once
 
 #include "algo_filter_common.hpp"
 #include "rp_matrix.hpp"
@@ -22,10 +21,12 @@ namespace robotpilots::algorithm{
  * 
  */
 template<uint16_t N>
-class CAlgo_Kf: public CFilterBase{
+class CAlgo_Kf: public CFilterBase
+{
 public:
     // 继承基类初始化结构体
-    struct SAlgoKfInitParam : public SFilterInitParam_Base{
+    struct SAlgoKfInitParam : public SFilterInitParam_Base
+    {
         
         float_t DT = 0.0f;                          ///< 调度周期
         uint8_t z_size = 0;                         ///< 观测量维度
@@ -39,7 +40,8 @@ public:
     };
     
     // 卡尔曼滤波信息结构体+实例
-    struct SAlgoKfInfo{
+    struct SAlgoKfInfo
+    {
         bool initialized = false;                   ///< 是否完成初始化
         Matrixt<float, N> filtered_value;              ///< 滤波输出
     } Kf_Info;
@@ -47,33 +49,44 @@ public:
     
     CAlgo_Kf() = default;  ///< 默认构造函数
 
-    explicit CAlgo_Kf(SFilterInitParam_Base &param){
+    explicit CAlgo_Kf(SFilterInitParam_Base &param)
+    {
         InitAlgo_(param);
     }   ///< 带参的构造函数，用初始化结构体构造
 
     // 模块析构函数
-	~CAlgo_Kf() noexcept = default;
+    ~CAlgo_Kf() noexcept = default;
 
     /**
      * @brief 设置状态转移矩阵
      * @param 状态转移矩阵F
      * 
      */
-    void Set_F(const Matrixt<float, N>& F) { this->F = F; this->FT = trans(this->F);}
+    void Set_F(const Matrixt<float, N>& F)
+    {
+        this->F = F;
+        this->FT = trans(this->F);
+    }
 
     /**
      * @brief 设置控制矩阵
      * @param 控制矩阵B
      * 
      */
-    void Set_B(const Matrixt<float, N>& B) { this->B = B; }
+    void Set_B(const Matrixt<float, N>& B)
+    {
+        this->B = B;
+    }
 
     /**
      * @brief 设置过程噪声协方差矩阵
      * @param 过程噪声协方差矩阵Q
      * 
      */
-    void Set_Q(const Matrixt<float, N>& Q) { this->Q = Q; }
+    void Set_Q(const Matrixt<float, N>& Q)
+    {
+        this->Q = Q;
+    }
 
     void Set_H(const Matrixt<float, N>& H_in);
     void Set_R(const Matrixt<float, N>& R_in);
@@ -92,19 +105,28 @@ public:
      * @brief 设置初始状态
      * @param 状态估计向量xhat_in
      */
-    void Set_xhat(const Matrixt<float, N>& xhat_in) { this->xhat = xhat_in; }
+    void Set_xhat(const Matrixt<float, N>& xhat_in)
+    {
+        this->xhat = xhat_in;
+    }
 
     /**
      * @brief 设置调度周期
      * @param 调度周期dt
      */
-    void Set_DT(float dt) { this->DT = dt; }
+    void Set_DT(float dt)
+    {
+        this->DT = dt;
+    }
 
     /**
      * @brief 设置后验估计协方差矩阵，使系统刚开始更快收敛
      * @param 后验估计协方差矩阵P
      */
-    void Set_P(const Matrixt<float, N>& P_in) { this->P = P_in; }
+    void Set_P(const Matrixt<float, N>& P_in)
+    {
+        this->P = P_in;
+    }
     
     virtual EAppStatus InitAlgo_(SFilterInitParam_Base &param) ;   ///< 初始化
 
@@ -164,7 +186,8 @@ namespace robotpilots::algorithm{
  * 
  */
 template<uint16_t N>
-EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
+EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param)
+{
 
     // 检查param是否正确
     if (param.AlgoID != EAlgoID::ALGO_KF && param.AlgoID != EAlgoID::ALGO_IMU_EKF) {
@@ -192,7 +215,8 @@ EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
     x_size_ = kfparam.x_size;
     z_size_ = kfparam.z_size;
     use_auto_adjustment_ = kfparam.use_auto_adjustment;
-    if(use_auto_adjustment_){
+    if (use_auto_adjustment_)
+    {
     measurement_degree_ = kfparam.measurement_degree;
     measurement_map_ = kfparam.measurement_map;
     r_diagonal_elements_ = kfparam.r_diagonal_elements;
@@ -220,7 +244,7 @@ EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
     S = zeros<float, N>(z_size_, z_size_);
     S_inv = zeros<float, N>(z_size_, z_size_);
     z = zeros<float, N>(z_size_, 1);
-    measured_vector_ = zeros<float, N>(z_size_,1);
+    measured_vector_ = zeros<float, N>(z_size_, 1);
     if (use_auto_adjustment_)
     {
     if (measurement_map_.size() != z_size_)return APP_ERROR;
@@ -251,7 +275,9 @@ EAppStatus CAlgo_Kf<N>::UpdateHandler_() {
         Algo_Kf_K_Update();
         Algo_Kf_Xhat_Update();
         Algo_Kf_P_Update();
-    } else {
+    }
+    else
+    {
         xhat = xhatMinus;
         P = Pminus;
     }
@@ -274,11 +300,13 @@ EAppStatus CAlgo_Kf<N>::UpdateHandler_() {
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Algo_Kf_Xhatminus_Update(){
+void CAlgo_Kf<N>::Algo_Kf_Xhatminus_Update()
+{
     if (u_size_ > 0) {
     xhatMinus = F * xhat + B * u;
     } 
-    else {
+    else
+    {
         xhatMinus = F * xhat;
     }   // 是否有输入量决定X先验协方差的计算方式
 }
@@ -288,7 +316,8 @@ void CAlgo_Kf<N>::Algo_Kf_Xhatminus_Update(){
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Algo_Kf_Pminus_Update(){
+void CAlgo_Kf<N>::Algo_Kf_Pminus_Update()
+{
     Pminus = F * P * FT + Q;
 }
 
@@ -297,7 +326,8 @@ void CAlgo_Kf<N>::Algo_Kf_Pminus_Update(){
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Algo_Kf_K_Update(void){
+void CAlgo_Kf<N>::Algo_Kf_K_Update(void)
+{
     S = H * Pminus * HT + R;
     S_inv = inv(S);
     K = Pminus * HT * S_inv;
@@ -308,7 +338,8 @@ void CAlgo_Kf<N>::Algo_Kf_K_Update(void){
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Algo_Kf_Xhat_Update(void){
+void CAlgo_Kf<N>::Algo_Kf_Xhat_Update(void)
+{
     xhat = xhatMinus + K * (z - H * xhatMinus);
 }
 
@@ -317,7 +348,8 @@ void CAlgo_Kf<N>::Algo_Kf_Xhat_Update(void){
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Algo_Kf_P_Update(void){
+void CAlgo_Kf<N>::Algo_Kf_P_Update(void)
+{
     Matrixt<float, N>I;
     I = eye<float, N>(x_size_);
     Matrixt<float, N> A = I - K * H;
@@ -377,7 +409,8 @@ void CAlgo_Kf<N>::Algo_Kf_Adjustment() {
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Set_H(const Matrixt<float, N>& H_in){
+void CAlgo_Kf<N>::Set_H(const Matrixt<float, N>& H_in)
+{
     if (H_in.rows() == z_size_ && H_in.cols() == x_size_) {
         H = H_in;
         HT = trans(H);
@@ -389,7 +422,8 @@ void CAlgo_Kf<N>::Set_H(const Matrixt<float, N>& H_in){
  * 
  */
 template<uint16_t N>
-void CAlgo_Kf<N>::Set_R(const Matrixt<float, N>& R_in){
+void CAlgo_Kf<N>::Set_R(const Matrixt<float, N>& R_in)
+{
     if (R_in.rows() == z_size_ && R_in.cols() == z_size_) {
         R = R_in;
     }
@@ -397,4 +431,3 @@ void CAlgo_Kf<N>::Set_R(const Matrixt<float, N>& R_in){
     
 } // namespace robotpilots::algorithm
 
-#endif // ALGO_KF_FILTER_HPP

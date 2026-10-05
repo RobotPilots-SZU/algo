@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGO_MATH_HPP
-#define ALGO_MATH_HPP
+#pragma once
 
 #include <cstdint>
 #include <cmath>
@@ -70,4 +69,3 @@ inline float lowPassFilter(float last, float current, float alpha) {
 
 } // namespace robotpilots::algorithm
 
-#endif // ALGO_MATH_HPP
