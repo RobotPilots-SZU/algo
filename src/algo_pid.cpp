@@ -29,6 +29,9 @@ EAppStatus CAlgoPid::InitPID(const SAlgoInitParam_Pid *pStructInitParam){
 
     auto &param = *pStructInitParam;
 
+    // 先检查：tickRate 不能为 0，否则积分计算会除零
+    if(param.tickRate == 0) return APP_ERROR;
+
     // 初始化pid参数
     tickRate_ = param.tickRate;
     kp_ = param.kp;
@@ -176,11 +179,15 @@ float CAlgoPid::CalcOutput_(const float error, SPidInfo &info){
 
     // 可持续输出
     if(sustainable_output_ > 0.0f){
+        // 注意：output == 0 时此处 sign 取 -1（零无方向）。当前无实际影响，
+        // 因 output==0 时 |output| > sustainable_output_ 恒为 false，不会进入限幅分支。
         int8_t sign = info.output > 0.0f ? 1 : -1;
         // 计算可持续时间
         if(std::fabs(info.output) > sustainable_output_){
+            // 注意：Time_exceed 为 uint32_t，若 sustainable_time_ 配为 UINT32_MAX
+            // 会溢出回绕导致限幅永不触发；当前未做饱和处理。
             info.Time_exceed++;
-            if(info.Time_exceed > sustainable_time_){
+            if(info.Time_exceed >= sustainable_time_){
                 info.output = sustainable_output_ * sign;
                 info.is_limit = true;
             }
@@ -192,8 +199,10 @@ float CAlgoPid::CalcOutput_(const float error, SPidInfo &info){
         }
         
         if (info.is_limit) {
+            // 注意：Time_recover 为 uint32_t，若 recover_time_ 配为 UINT32_MAX
+            // 会溢出回绕导致限幅无法解除；当前未做饱和处理。
             info.Time_recover++;
-            if (info.Time_recover > recover_time_) {
+            if (info.Time_recover >= recover_time_) {
                 info.Time_exceed = 0;
                 info.Time_recover = 0;
                 info.is_limit = false;

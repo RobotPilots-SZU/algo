@@ -160,6 +160,9 @@ bool Crc8Verify(const uint8_t *buffer,
                                     uint8_t crc,
                                     size_t len) {
 
+  // 先检查：空指针且长度非零时直接判定失败，避免解引用空指针
+  if (buffer == nullptr && len > 0) return false;
+
   if (crc == Crc8Checksum_(buffer, CRC8_INIT, len))
     return true;
   else
@@ -195,6 +198,9 @@ bool Crc16Verify(const uint8_t *buffer,
                                      uint16_t crc,
                                      size_t len) {
 
+  // 先检查：空指针且长度非零时直接判定失败，避免解引用空指针
+  if (buffer == nullptr && len > 0) return false;
+
   if (crc == Crc16CheckSum_(buffer, CRC16_INIT, len)) 
     return true;
   else 
@@ -224,6 +230,9 @@ uint8_t Crc8Calculate(const DataReceiver<uint8_t> buffer) {
 uint8_t Crc8Calculate(const uint8_t *buffer,
                                      size_t len) {
 
+  // 先检查：空指针且长度非零时返回 0，避免解引用空指针
+  if (buffer == nullptr && len > 0) return 0;
+
   return Crc8Checksum_(buffer, CRC8_INIT, len);
 }
 
@@ -249,6 +258,9 @@ uint16_t Crc16Calculate(const DataReceiver<uint8_t> buffer) {
  */
 uint16_t Crc16Calculate(const uint8_t *buffer,
                                        size_t len) {
+
+  // 先检查：空指针且长度非零时返回 0，避免解引用空指针
+  if (buffer == nullptr && len > 0) return 0;
 
   return Crc16CheckSum_(buffer, CRC16_INIT, len);
 }
