@@ -15,7 +15,6 @@
 #include <stdint.h>
 #include <cmath>
 #include <etl/vector.h>
-#include <etl/map.h>
 
 namespace robotpilots::algorithm {
 
@@ -45,13 +44,6 @@ enum EAppStatus {
 	APP_INVALID,   ///< 无效
 	APP_UNKNOWN    ///< 未知
 };
-
-/**
- * @brief 配置并初始化所有算法
- * @return APP_OK - 初始化成功
- * @return APP_ERROR - 初始化失败
- */
-EAppStatus InitAllAlgo();
 
 } // namespace robotpilots::algorithm
 

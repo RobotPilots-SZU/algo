@@ -13,6 +13,7 @@
 #define ALGO_MATH_HPP
 
 #include <cstdint>
+#include <cmath>
 
 namespace robotpilots::algorithm {
 
@@ -26,13 +27,9 @@ namespace robotpilots::algorithm {
 inline float wrap(float val, float lo, float hi) {
     if (lo >= hi) return val;  // 无效区间，直接返回
     float range = hi - lo;
-    if (val > hi) {
-        // 向下减直到落在区间内
-        while (val > hi) val -= range;
-    } else if (val < lo) {
-        while (val < lo) val += range;
-    }
-    return val;
+    float t = std::fmod(val - lo, range);  // O(1)，避免大数值时循环卡死
+    if (t < 0.0f) t += range;              // fmod 结果与被除数同号，负数需回正
+    return lo + t;                          // 结果落在 [lo, hi)
 }
 
 /**

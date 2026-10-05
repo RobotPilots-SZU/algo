@@ -52,7 +52,7 @@ public:
     }   ///< 带参的构造函数，用初始化结构体构造
 
     // 模块析构函数
-	~CAlgo_Kf() noexcept { UnregisterAlgorithm_(); };
+	~CAlgo_Kf() noexcept = default;
 
     /**
      * @brief 设置状态转移矩阵
@@ -173,6 +173,19 @@ EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
 
     // 类型转换
     auto &kfparam = static_cast<SAlgoKfInitParam&>(param);
+
+    // 维度合法性校验：必须非零且不超过模板容量 N
+    if (kfparam.x_size == 0 || kfparam.z_size == 0 ||
+        kfparam.x_size > N || kfparam.z_size > N || kfparam.u_size > N) {
+        return APP_ERROR;
+    }
+    // 各矩阵元素总数(rows*cols)不得超出容器容量 N
+    if (static_cast<uint32_t>(kfparam.x_size) * kfparam.x_size > N ||
+        static_cast<uint32_t>(kfparam.z_size) * kfparam.z_size > N ||
+        static_cast<uint32_t>(kfparam.x_size) * kfparam.z_size > N ||
+        (kfparam.u_size > 0 && static_cast<uint32_t>(kfparam.x_size) * kfparam.u_size > N)) {
+        return APP_ERROR;
+    }
 
     DT = kfparam.DT;
     u_size_ = kfparam.u_size;

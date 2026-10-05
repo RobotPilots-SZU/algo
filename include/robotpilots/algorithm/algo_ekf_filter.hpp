@@ -18,7 +18,7 @@ class CAlgo_Ekf final: public CAlgo_Kf<N>
 public:
 
 	CAlgo_Ekf() = default;
-	~CAlgo_Ekf() noexcept { this->UnregisterAlgorithm_(); };
+	~CAlgo_Ekf() noexcept = default;
 
 	//状态函数F(x，u)
 	using StateFunc =
@@ -140,6 +140,15 @@ EAppStatus CAlgo_Ekf<N>::InitAlgo_(CFilterBase::SFilterInitParam_Base &param)
     }
 
     auto &ekf_param = static_cast<SAlgoEKfInitParam&>(param);
+
+    // 校验必需回调是否已设置，避免运行期调用空 std::function 抛异常
+    if (!ekf_param.f || !ekf_param.h || !ekf_param.jacF ||
+        !ekf_param.jacH || !ekf_param.p_func || !ekf_param.Xhat_func) {
+        return APP_ERROR;
+    }
+    if (ekf_param.Chi_Set && (!ekf_param.chi || !ekf_param.k_func)) {
+        return APP_ERROR;
+    }
 
     this->Chi_Set_ = ekf_param.Chi_Set;
     this->f_ = ekf_param.f;

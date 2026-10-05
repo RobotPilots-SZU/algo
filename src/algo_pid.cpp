@@ -11,6 +11,8 @@
 
 #include "robotpilots/algorithm/algo_pid.hpp"
 
+#include <algorithm>
+
 
 namespace robotpilots::algorithm {
 /**
@@ -76,9 +78,11 @@ float_t CAlgoPid::UpdatePidController(const float_t &target,
  * 
  */
 EAppStatus CAlgoPid::ResetPidController(){
-    // 检查状态
-    if(PidStatus == APP_RESET) return APP_ERROR;
+    // 仅在计算中(BUSY)禁止重置；RESET/OK 状态都允许
     if(PidStatus == APP_BUSY) return APP_ERROR;
+
+    // 真正清零内部状态：积分、微分、上次误差、输出、超时/恢复计数
+    SPidInfo_ = SPidInfo{};
 
     return APP_OK;
 }
@@ -106,7 +110,7 @@ float_t CAlgoPid::CalcError_(const float_t &target,
         case EPidErrorMode::ANGLE:
                 error = target - measure;
                 // 将误差限制在-180 - 180内,并处理经过零点情况
-                if(abs(error) > 180.0f){
+                if(std::fabs(error) > 180.0f){
                     error -= std::copysign(360.0f, error);
                 }
             break;
@@ -114,7 +118,7 @@ float_t CAlgoPid::CalcError_(const float_t &target,
         case EPidErrorMode::MACHINE:
                 error = target - measure;
                 // 将误差限制在-4096到4096内,并处理经过零点情况
-                if(abs(error) > static_cast<float_t>(MachineModeErrorRange_) / 2){
+                if(std::fabs(error) > static_cast<float_t>(MachineModeErrorRange_) / 2){
                     error -= std::copysign(static_cast<float_t>(MachineModeErrorRange_), error);
                 }
             break;
@@ -138,14 +142,14 @@ float CAlgoPid::CalcOutput_(const float error, SPidInfo &info){
     
 
     // 检查死区
-    if(inputDeadband_ > 0.0f && abs(error) < inputDeadband_){
+    if(inputDeadband_ > 0.0f && std::fabs(error) < inputDeadband_){
         info.integral = 0.0f;
         info.lastError = 0.0f;
         return 0.0f;
     }
 
     // 计算积分分离
-    if(input_integralSeparation_ > 0.0f && abs(error) > input_integralSeparation_){
+    if(input_integralSeparation_ > 0.0f && std::fabs(error) > input_integralSeparation_){
         info.integral = 0.0f;
     }
     else
@@ -174,7 +178,7 @@ float CAlgoPid::CalcOutput_(const float error, SPidInfo &info){
     if(sustainable_output_ > 0.0f){
         int8_t sign = info.output > 0.0f ? 1 : -1;
         // 计算可持续时间
-        if(abs(info.output) > sustainable_output_){
+        if(std::fabs(info.output) > sustainable_output_){
             info.Time_exceed++;
             if(info.Time_exceed > sustainable_time_){
                 info.output = sustainable_output_ * sign;

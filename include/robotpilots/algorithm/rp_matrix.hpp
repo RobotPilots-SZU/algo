@@ -13,6 +13,7 @@
 #define RP_MATRIX_HPP
 
 #include <cmath>
+#include <cstddef>
 /*需开启的K_config*/
 // # 启用CMSIS-DSP库
 // CONFIG_CMSIS_DSP=y
@@ -50,7 +51,13 @@ public:
 
     // 根据传入的行 列维度构造
     Matrixt(int rows, int cols) : rows_(rows), cols_(cols), data_({}){  ///< 初始化列表
-        data_.resize(rows * cols);
+        // 边界检查：行列非法或元素总数超出容器容量 N 时退化为空矩阵，避免 resize 越界
+        if (rows < 0 || cols < 0 || static_cast<size_t>(rows) * cols > N) {
+            rows_ = 0;
+            cols_ = 0;
+        } else {
+            data_.resize(rows * cols);
+        }
         if constexpr (etl::is_same_v<T, float>){
             arm_mat_init_f32(&arm_mat_, rows_, cols_, (float32_t *)data_.data());    ///< 初始化矩阵实例
         }

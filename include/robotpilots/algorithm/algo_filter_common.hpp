@@ -22,8 +22,6 @@ namespace robotpilots::algorithm{
  * 
  */
 class CFilterBase{
-// 声明友元函数
-friend void StartUpdateTask(void *argument);
 protected:
 
     /**
@@ -41,26 +39,13 @@ protected:
     // 更新处理
     virtual EAppStatus UpdateHandler_() {return APP_ERROR;}
 
-    // 创建算法任务
-    virtual EAppStatus CreateAlgorithmTask_() { return APP_ERROR; }
-
-    // 注册算法
-    EAppStatus RegisterAlgorithm_() { return APP_OK; }
-
-    // 注销算法
-    EAppStatus UnregisterAlgorithm_() { return APP_OK; }
-
 public:
-    EAlgoID AlgoID;     ///< 算法ID
-
     // 算法构造函数
     CFilterBase() = default;
 
     // 算法析构函数
-    virtual ~CFilterBase() {UnregisterAlgorithm_();};
+    virtual ~CFilterBase() = default;
 };
-
-extern etl::map<EAlgoID, CFilterBase*, 16> AlgoIDMap;
 
 } // namespace robotpilots::algorithm
 
