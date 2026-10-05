@@ -68,6 +68,6 @@ inline float lowPassFilter(float last, float current, float alpha) {
     return last * alpha + current * (1.0f - alpha);
 }
 
-} // namespace balgorithm
+} // namespace robotpilots::algorithm
 
 #endif // ALGO_MATH_HPP

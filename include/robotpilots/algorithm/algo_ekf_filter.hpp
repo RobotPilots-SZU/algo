@@ -47,7 +47,7 @@ public:
 
 	struct SAlgoEKfInfo
 	{
-		bool isitialized = false;	   ///< 是否完成初始化
+		bool initialized = false;	   ///< 是否完成初始化
 		Matrixt<float, N> filtered_value; ///< 滤波输出
 	} Ekf_Info;
 
@@ -164,7 +164,7 @@ EAppStatus CAlgo_Ekf<N>::InitAlgo_(CFilterBase::SFilterInitParam_Base &param)
 
     this->Chi_Square_Mat = zeros<float, N>(1, 1);
     this->Chi_Square = 0.0f;
-    this->Ekf_Info.isitialized = true;
+    this->Ekf_Info.initialized = true;
     return APP_OK;
 }
 

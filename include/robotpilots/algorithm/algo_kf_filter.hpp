@@ -40,7 +40,7 @@ public:
     
     // 卡尔曼滤波信息结构体+实例
     struct SAlgoKfInfo{
-        bool isitialized = false;                   ///< 是否完成初始化
+        bool initialized = false;                   ///< 是否完成初始化
         Matrixt<float, N> filtered_value;              ///< 滤波输出
     } Kf_Info;
 
@@ -229,7 +229,7 @@ EAppStatus CAlgo_Kf<N>::InitAlgo_(SFilterInitParam_Base &param){
     if (!state_min_variance_.empty() &&state_min_variance_.size() != x_size_)return APP_ERROR;
     }
         // 检查维度
-    Kf_Info.isitialized = true;
+    Kf_Info.initialized = true;
     return APP_OK;
     }
 

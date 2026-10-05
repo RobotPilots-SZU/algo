@@ -259,7 +259,7 @@ public:
         }
 
         Matrixt<T, N> mat_inv = inv(mat);
-        // 若除数矩阵不可逆则返回恐惧真
+        // 若除数矩阵不可逆则返回空矩阵
         if (mat_inv.rows_ == 0 || mat_inv.cols_ == 0) {
             return zeros<T, N>(0, 0);
         }

@@ -140,7 +140,7 @@ float_t CAlgoPid::CalcError_(const float_t &target,
  * @param threadInfo 
  * @return float_t 
  */
-float CAlgoPid::CalcOutput_(const float error, SPidInfo &info){
+float_t CAlgoPid::CalcOutput_(const float_t error, SPidInfo &info){
 
     
 

@@ -131,7 +131,7 @@ private:
      * @brief 计算PID控制器的输出值，并存储运算值
      * 
      */
-    float CalcOutput_(const float error, SPidInfo &info);
+    float_t CalcOutput_(const float_t error, SPidInfo &info);
 
 };
 

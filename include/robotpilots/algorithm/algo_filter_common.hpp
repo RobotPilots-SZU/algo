@@ -13,7 +13,6 @@
 #define ALGO_FILTER_COMMON_HPP
 
 #include "conf_algo.hpp"
-#include "algo_types.hpp"
 
 namespace robotpilots::algorithm{
     
