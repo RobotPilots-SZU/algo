@@ -17,9 +17,11 @@
 #include "algorithm/algo_math.hpp"
 #include "algorithm/algo_crc.hpp"
 #include "algorithm/algo_pid.hpp"
+#ifdef ALGO_ENABLE_ARM_MATH
 #include "algorithm/rp_matrix.hpp" 
 #include "algorithm/algo_filter_common.hpp"
 #include "algorithm/algo_kf_filter.hpp"
 #include "algorithm/algo_ekf_filter.hpp"
+#endif
 
 #endif  // ALGORITHM_HPP

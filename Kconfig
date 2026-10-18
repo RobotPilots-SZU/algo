@@ -1,0 +1,19 @@
+config ZEPHYR_ALGO_MODULE
+	bool
+
+menuconfig ALGO
+	bool "RobotPilots algorithm library"
+	depends on CPP
+	select ETL
+	help
+	  Enable the RobotPilots algorithm library.
+
+if ALGO
+
+config ALGO_ENABLE_ARM_MATH
+	bool "Enable CMSIS-DSP based algorithms"
+	depends on CMSIS_DSP
+	help
+	  Enable matrix, Kalman filter and extended Kalman filter algorithms.
+
+endif # ALGO
