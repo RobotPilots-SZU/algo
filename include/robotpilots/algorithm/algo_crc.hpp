@@ -1,7 +1,7 @@
 /**
  * @file algo_crc.hpp
  * @author cuteelaina (1105549920@qq.com)
- * @brief CRC8/CRC16 校验计算与验证
+ * @brief CRC8/CRC16 校验计算
  * @version 1.0
  * @date 2026-05-28
  *
@@ -13,86 +13,27 @@
 #define ALGO_CRC_HPP
 
 #include <cstdint>
-#include <cstddef>
-#include "algo_types.hpp"
+#include <etl/span.h>
 
 namespace robotpilots::algorithm {
 
 /**
- * @brief Verify CRC8 Checksum Value for Data Buffer
- * @param buffer[in] Data Buffer Vector
- * @param crc[in] CRC8 Checksum Value
- *
- * @returns RP_OK - Verify Succeeded \n
- *          RP_ERROR - Verify Failed
- */
-bool Crc8Verify(const DataReceiver<uint8_t> buffer, uint8_t crc);
-
-/**
- * @brief Verify CRC8 Value Checksum for Data Buffer
- * @param buffer[in] Data Buffer Pointer
- * @param crc[in] CRC8 Checksum Value
- * @param len[in] Bit Length of Data Buffer
- *
- * @returns RP_OK - Verify Succeeded \n
- *          RP_ERROR - Verify Failed
- */
-bool Crc8Verify(const uint8_t *buffer, uint8_t crc, size_t len);
-
-/**
- * @brief Verify CRC16 Checksum Value for Data Buffer
- * @param buffer[in] Data Buffer
- * @param crc[in] CRC16 Checksum Value
- *
- * @returns RP_OK - Verify Succeeded \n
- *          RP_ERROR - Verify Failed
- */
-bool Crc16Verify(const DataReceiver<uint8_t> buffer, uint16_t crc);
-
-/**
- * @brief Verify CRC16 Checksum Value for Data Buffer
- * @param buffer[in] Data Buffer Pointer
- * @param crc[in] CRC16 Checksum Value
- * @param len[in] Bit Length of Data Buffer
- *
- * @returns RP_OK - Verify Succeeded \n
- *          RP_ERROR - Verify Failed
- */
-bool Crc16Verify(const uint8_t *buffer, uint16_t crc, size_t len);
-
-/**
  * @brief Calculate CRC8 Checksum Value from Data Buffer
- * @param buffer[in] Data Buffer
+ * @param data[in] Data Buffer
+ * @param init Initial CRC8 Value
  *
  * @return CRC8 Checksum Value
  */
-uint8_t Crc8Calculate(const DataReceiver<uint8_t> buffer);
-
-/**
- * @brief Calculate CRC8 Checksum Value from Data Buffer
- * @param buffer[in] Data Buffer Pointer
- * @param len[in] Bit Length of Data Buffer
- *
- * @return CRC8 Checksum Value
- */
-uint8_t Crc8Calculate(const uint8_t *buffer, size_t len);
+uint8_t Crc8Calculate(etl::span<const uint8_t> data, uint8_t init = 0xff);
 
 /**
  * @brief Calculate CRC16 Checksum Value from Data Buffer
- * @param buffer[in] Data Buffer
+ * @param data[in] Data Buffer
+ * @param init Initial CRC16 Value
  *
  * @return CRC16 Checksum Value
  */
-uint16_t Crc16Calculate(const DataReceiver<uint8_t> buffer);
-
-/**
- * @brief Calculate CRC16 Checksum Value from Data Buffer
- * @param buffer[in] Data Buffer Pointer
- * @param len[in] Bit Length of Data Buffer
- *
- * @return CRC16 Checksum Value
- */
-uint16_t Crc16Calculate(const uint8_t *buffer, size_t len);
+uint16_t Crc16Calculate(etl::span<const uint8_t> data, uint16_t init = 0xffff);
 
 } // namespace robotpilots::algorithm
 

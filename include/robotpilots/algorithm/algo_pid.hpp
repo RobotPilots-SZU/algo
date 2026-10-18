@@ -14,8 +14,6 @@
 
 #include <cmath>
 #include <cstdint>
-#include "algo_types.hpp"
-#include "algo_math.hpp"
 #include "conf_algo.hpp"
 
 namespace robotpilots::algorithm {

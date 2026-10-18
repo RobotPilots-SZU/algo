@@ -14,7 +14,6 @@
 
 // 包含所有公共子模块
 #include "algorithm/conf_algo.hpp"
-#include "algorithm/algo_types.hpp"
 #include "algorithm/algo_math.hpp"
 #include "algorithm/algo_crc.hpp"
 #include "algorithm/algo_pid.hpp"
