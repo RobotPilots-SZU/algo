@@ -1,5 +1,5 @@
 /**
- * @file algo_crc.hpp
+ * @file crc.hpp
  * @author cuteelaina (1105549920@qq.com)
  * @brief CRC8/CRC16 校验计算
  * @version 1.0

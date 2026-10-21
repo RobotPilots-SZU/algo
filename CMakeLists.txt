@@ -18,14 +18,14 @@ endif()
 set(ALGO_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 set(ALGO_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/src/algo_crc.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/algo_pid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/crc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/pid.cpp
 )
 
 if(ALGO_ENABLE_ARM_MATH_EFFECTIVE)
     list(APPEND ALGO_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/algo_ekf_filter.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/algo_kf_filter.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/ekf_filter.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/kf_filter.cpp
     )
 endif()
 

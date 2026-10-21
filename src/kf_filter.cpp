@@ -1,5 +1,5 @@
 /**
- * @file algo_kf_filter.cpp
+ * @file kf_filter.cpp
  * @author sllllr (2997708711@qq.com)
  * @brief 卡尔曼滤波
  * @version 1.0
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "robotpilots/algorithm/algo_kf_filter.hpp"
+#include "robotpilots/algorithm/kf_filter.hpp"
 
 #define deg2rad(x) ((x) * 0.017453292519943295769236907684886)
 #define rad2deg(x) ((x) * 57.295779513082320876798154814105)

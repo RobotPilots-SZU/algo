@@ -1,5 +1,5 @@
 /**
- * @file algo_crc.cpp
+ * @file crc.cpp
  * @author cuteelaina (1105549920@qq.com)
  * @brief CRC8/CRC16 校验实现
  * @version 1.0
@@ -9,7 +9,7 @@
  *
  */
 
-#include "robotpilots/algorithm/algo_crc.hpp"
+#include "robotpilots/algorithm/crc.hpp"
 
 namespace robotpilots::algorithm
 {

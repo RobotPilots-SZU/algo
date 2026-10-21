@@ -1,5 +1,5 @@
 /**
- * @file algo_pid.hpp
+ * @file pid.hpp
  * @author cuteelaina (1105549920@qq.com)
  * @brief PID 控制器
  * @version 1.0

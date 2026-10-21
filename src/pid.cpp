@@ -1,5 +1,5 @@
 /**
- * @file algo_pid.cpp
+ * @file pid.cpp
  * @author cuteelaina (1105549920@qq.com)
  * @brief PID 控制器实现
  * @version 1.0
@@ -9,7 +9,7 @@
  *
  */
 
-#include "robotpilots/algorithm/algo_pid.hpp"
+#include "robotpilots/algorithm/pid.hpp"
 
 
 namespace robotpilots::algorithm {

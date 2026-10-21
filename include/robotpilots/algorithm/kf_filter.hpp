@@ -1,5 +1,5 @@
 /**
- * @file algo_kf_filter.hpp
+ * @file kf_filter.hpp
  * @author sllllr (2997708711@qq.com)
  * @brief 卡尔曼滤波
  * @version 1.0
@@ -12,7 +12,7 @@
 #ifndef ALGO_KF_FILTER_HPP
 #define ALGO_KF_FILTER_HPP
 
-#include "algo_filter_common.hpp"
+#include "filter_common.hpp"
 #include "rp_matrix.hpp"
 
 namespace robotpilots::algorithm{

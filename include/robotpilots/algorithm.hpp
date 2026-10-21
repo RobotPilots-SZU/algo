@@ -14,14 +14,14 @@
 
 // 包含所有公共子模块
 #include "algorithm/conf_algo.hpp"
-#include "algorithm/algo_math.hpp"
-#include "algorithm/algo_crc.hpp"
-#include "algorithm/algo_pid.hpp"
+#include "algorithm/math.hpp"
+#include "algorithm/crc.hpp"
+#include "algorithm/pid.hpp"
 #ifdef ALGO_ENABLE_ARM_MATH
 #include "algorithm/rp_matrix.hpp" 
-#include "algorithm/algo_filter_common.hpp"
-#include "algorithm/algo_kf_filter.hpp"
-#include "algorithm/algo_ekf_filter.hpp"
+#include "algorithm/filter_common.hpp"
+#include "algorithm/kf_filter.hpp"
+#include "algorithm/ekf_filter.hpp"
 #endif
 
 #endif  // ALGORITHM_HPP

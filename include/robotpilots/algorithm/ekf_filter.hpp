@@ -1,8 +1,8 @@
 #ifndef ALGO_IMU_EKF_HPP
 #define ALGO_IMU_EKF_HPP
 
-#include "algo_filter_common.hpp"
-#include "algo_kf_filter.hpp"
+#include "filter_common.hpp"
+#include "kf_filter.hpp"
 #include <functional>
 
 namespace robotpilots::algorithm
@@ -125,4 +125,3 @@ private:
 } // namespace robotpilots::algorithm
 
 #endif // ALGO_IMU_EKF_HPP
-
