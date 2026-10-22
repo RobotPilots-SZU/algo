@@ -1,235 +1,197 @@
-/**
- * @file kf_filter.cpp
- * @author sllllr (2997708711@qq.com)
- * @brief 卡尔曼滤波
- * @version 1.0
- * @date 2026-01-14
- * 
- * @copyright Copyright (c) 2026
- * 
- */
-
 #include "robotpilots/algorithm/kf_filter.hpp"
 
-#define deg2rad(x) ((x) * 0.017453292519943295769236907684886)
-#define rad2deg(x) ((x) * 57.295779513082320876798154814105)
-
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <optional>
+#include <utility>
 
 namespace robotpilots::algorithm
 {
-    
-/**
- * @brief 初始化卡尔曼滤波
- * @retval EAppStatus
- * 
- */
-EAppStatus CAlgo_Kf::InitAlgo_(SFilterInitParam_Base &param){
+namespace
+{
 
-    // 检查param是否正确
-    if (param.AlgoID != EAlgoID::ALGO_KF && param.AlgoID != EAlgoID::ALGO_IMU_EKF) {
-        return APP_ERROR;
-    }
+void RequireShape(const Matrix<float>& matrix, int rows, int columns)
+{
+    assert(matrix.Rows() == rows && matrix.Cols() == columns);
+    static_cast<void>(matrix);
+    static_cast<void>(rows);
+    static_cast<void>(columns);
+}
 
-    // 类型转换
-    auto &kfparam = static_cast<SAlgoKfInitParam&>(param);
-
-    DT = kfparam.DT;
-    u_size_ = kfparam.u_size;
-    x_size_ = kfparam.x_size;
-    z_size_ = kfparam.z_size;
-    use_auto_adjustment_ = kfparam.use_auto_adjustment;
-    if(use_auto_adjustment_){
-    measurement_degree_ = kfparam.measurement_degree;
-    measurement_map_ = kfparam.measurement_map;
-    r_diagonal_elements_ = kfparam.r_diagonal_elements;
-    state_min_variance_ = kfparam.state_min_variance;
-    }else{
-        measurement_valid_num_ = z_size_;
-    }
-    
-    // 初始化卡尔曼黄金五式参与运算的矩阵
-    xhat = Zeros<float>(x_size_, 1);
-    xhatMinus = Zeros<float>(x_size_, 1);
-    F = Zeros<float>(x_size_, x_size_);
-    FT = Zeros<float>(x_size_, x_size_);
-    P = Eye<float>(x_size_);
-    Pminus = Zeros<float>(x_size_, x_size_);
-    Q = Zeros<float>(x_size_, x_size_);
-    if (u_size_ > 0) {      // 系统有输入的时候才初始化控制矩阵和输入向量
-        B = Zeros<float>(x_size_, u_size_);
-        u = Zeros<float>(u_size_, 1);
-    }
-    H = Zeros<float>(z_size_, x_size_);
-    HT = Zeros<float>(x_size_, z_size_);
-    R = Zeros<float>(z_size_, z_size_);
-    K = Zeros<float>(x_size_, z_size_);
-    S = Zeros<float>(z_size_, z_size_);
-    S_inv = Zeros<float>(z_size_, z_size_);
-    z = Zeros<float>(z_size_, 1);
-    measured_vector_ = Zeros<float>(z_size_,1);
-    if (use_auto_adjustment_)
+void ApplyVarianceFloor(Matrix<float>& covariance, const etl::vector<float, 16>& minimum)
+{
+    for (std::size_t index = 0; index < minimum.size(); ++index)
     {
-    if (measurement_map_.size() != z_size_)return APP_ERROR;
-    if (measurement_degree_.size() != z_size_)return APP_ERROR;
-    if (r_diagonal_elements_.size() != z_size_) return APP_ERROR;
-    if (!state_min_variance_.empty() &&state_min_variance_.size() != x_size_)return APP_ERROR;
+        covariance[index][index] = std::max(covariance[index][index], minimum[index]);
     }
-        // 检查维度
-    Kf_Info.isitialized = true;
-    return APP_OK;
-    }
+}
 
-/**
- * @brief 卡尔曼滤波更新
- * @retval EAppStatus
- */
-EAppStatus CAlgo_Kf::UpdateHandler_() {
-    // 动态调整(若需要)
-    Algo_Kf_Adjustment();
-
-    // 预测
-    Algo_Kf_Xhatminus_Update();
-    Algo_Kf_Pminus_Update();
-
-    // 有效观测才做测量更新
-    if (measurement_valid_num_ > 0) {
-        Algo_Kf_K_Update();
-        Algo_Kf_Xhat_Update();
-        Algo_Kf_P_Update();
-    } else {
-        xhat = xhatMinus;
-        P = Pminus;
+// Cholesky 分解避免 Matrix::Inverted 的增广矩阵超过定长存储容量。
+// 创新协方差必须正定；失败时不产生用于更新的逆矩阵。
+std::optional<Matrix<float>> InvertInnovation(const Matrix<float>& covariance)
+{
+    const auto size = covariance.Rows();
+    auto lower = Zeros<float>(size, size);
+    for (int row = 0; row < size; ++row)
+    {
+        for (int column = 0; column <= row; ++column)
+        {
+            float value = covariance[row][column];
+            for (int index = 0; index < column; ++index)
+            {
+                value -= lower[row][index] * lower[column][index];
+            }
+            if (!std::isfinite(value) || (row == column && value <= 0.0f))
+            {
+                return std::nullopt;
+            }
+            lower[row][column] = row == column
+                ? std::sqrt(value) : value / lower[column][column];
+        }
     }
 
-    // 4. P限幅
-    if (!state_min_variance_.empty()) {
-        for (uint8_t i = 0; i < x_size_; ++i) {
-            if (P[i][i] < state_min_variance_[i]) {
-                P[i][i] = state_min_variance_[i];
+    auto inverse = Eye<float>(size);
+    for (int column = 0; column < size; ++column)
+    {
+        for (int row = 0; row < size; ++row)
+        {
+            for (int index = 0; index < row; ++index)
+            {
+                inverse[row][column] -= lower[row][index] * inverse[index][column];
+            }
+            inverse[row][column] /= lower[row][row];
+        }
+        for (int row = size - 1; row >= 0; --row)
+        {
+            for (int index = row + 1; index < size; ++index)
+            {
+                inverse[row][column] -= lower[index][row] * inverse[index][column];
+            }
+            inverse[row][column] /= lower[row][row];
+            if (!std::isfinite(inverse[row][column]))
+            {
+                return std::nullopt;
             }
         }
     }
-
-    Kf_Info.filtered_value = xhat;
-    return APP_OK;
+    return inverse;
 }
 
-/**
- * @brief 更新先验估计
- * 
- */
-void CAlgo_Kf::Algo_Kf_Xhatminus_Update(){
-    if (u_size_ > 0) {
-    xhatMinus = F * xhat + B * u;
-    } 
-    else {
-        xhatMinus = F * xhat;
-    }   // 是否有输入量决定X先验协方差的计算方式
+} // namespace
+
+Kf::Kf(Config config)
+    : config_(std::move(config)),
+      state_(config_.InitialState),
+      covariance_(config_.InitialCovariance)
+{
+    const auto stateSize = state_.Rows();
+    const auto measurementSize = config_.MeasurementModel.Rows();
+    assert(stateSize > 0 && stateSize <= 16);
+    assert(measurementSize > 0 && measurementSize <= 16);
+    RequireShape(state_, stateSize, 1);
+    RequireShape(covariance_, stateSize, stateSize);
+    RequireShape(config_.StateTransition, stateSize, stateSize);
+    RequireShape(config_.ProcessNoise, stateSize, stateSize);
+    RequireShape(config_.MeasurementModel, measurementSize, stateSize);
+    RequireShape(config_.MeasurementNoise, measurementSize, measurementSize);
+    if (!config_.ControlTransition.Empty())
+    {
+        assert(config_.ControlTransition.Cols() > 0 && config_.ControlTransition.Cols() <= 16);
+        RequireShape(config_.ControlTransition, stateSize, config_.ControlTransition.Cols());
+    }
+    assert(config_.MinimumVariance.empty() ||
+           config_.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
+    for ([[maybe_unused]] const auto minimum : config_.MinimumVariance)
+    {
+        assert(std::isfinite(minimum) && minimum >= 0.0f);
+    }
+    ApplyVarianceFloor(covariance_, config_.MinimumVariance);
 }
 
-/**
- * @brief 更新先验估计协方差
- * 
- */
-void CAlgo_Kf::Algo_Kf_Pminus_Update(){
-    Pminus = F * P * FT + Q;
-}
-
-/**
- * @brief 更新卡尔曼增益
- * 
- */
-void CAlgo_Kf::Algo_Kf_K_Update(void){
-    S = H * Pminus * HT + R;
-    S_inv = Inv(S);
-    K = Pminus * HT * S_inv;
-}
-
-/**
- * @brief 更新后验最优估计
- * 
- */
-void CAlgo_Kf::Algo_Kf_Xhat_Update(void){
-    xhat = xhatMinus + K * (z - H * xhatMinus);
-}
-
-/**
- * @brief 更新后验估计协方差
- * 
- */
-void CAlgo_Kf::Algo_Kf_P_Update(void){
-    Matrix<float>I;
-    I = Eye<float>(x_size_);
-    Matrix<float> A = I - K * H;
-    P = A * Pminus * Trans(A) + K * R * Trans(K);
-}
-
-/**
- * @brief 动态调整
- * 
- * 
- */
-void CAlgo_Kf::Algo_Kf_Adjustment() {
-    if (!use_auto_adjustment_) {
-        // 不用动态调整，直接用原始尺寸
-        z = measured_vector_;
-        measurement_valid_num_ = z_size_;
-        // H、R由外部设置
-        return;
+void Kf::Predict(const Matrix<float>& control)
+{
+    auto predictedState = config_.StateTransition * state_;
+    if (!config_.ControlTransition.Empty())
+    {
+        RequireShape(control, config_.ControlTransition.Cols(), 1);
+        predictedState += config_.ControlTransition * control;
+    }
+    else
+    {
+        assert(control.Empty());
     }
 
-    measurement_valid_num_ = 0;
-    etl::vector<uint8_t, 16> valid_indices;
-    for (uint8_t i = 0; i < z_size_; ++i) {
-        if (!std::isnan(measured_vector_[i][0])) {
-            valid_indices.push_back(i);
-            measurement_valid_num_++;
+    auto predictedCovariance = config_.StateTransition * covariance_ *
+        config_.StateTransition.Transposed() + config_.ProcessNoise;
+    ApplyVarianceFloor(predictedCovariance, config_.MinimumVariance);
+    state_ = std::move(predictedState);
+    covariance_ = std::move(predictedCovariance);
+}
+
+std::optional<Matrix<float>> Kf::Update(const Matrix<float>& measurement)
+{
+    RequireShape(measurement, config_.MeasurementModel.Rows(), 1);
+    etl::vector<int, 16> validIndices;
+    for (int index = 0; index < measurement.Rows(); ++index)
+    {
+        if (std::isfinite(measurement[index][0]))
+        {
+            validIndices.push_back(index);
         }
     }
-    if (measurement_valid_num_ == 0) return;
+    if (validIndices.empty())
+    {
+        return std::nullopt;
+    }
 
-    // 动态重构 z, H, R
-    z = Matrix<float>(measurement_valid_num_, 1);
-    H = Matrix<float>(measurement_valid_num_, x_size_);
-    R = Matrix<float>(measurement_valid_num_, measurement_valid_num_);
-
-    etl::fill(H.Data(), H.Data() + H.Size(), 0.0f);
-    etl::fill(R.Data(), R.Data() + R.Size(), 0.0f);
-
-    for (uint8_t i = 0; i < measurement_valid_num_; ++i) {
-        uint8_t idx = valid_indices[i];
-        z[i][0] = measured_vector_[idx][0];
-        if (measurement_map_[idx] == 0) continue;
-        uint8_t state_idx = measurement_map_[idx] - 1;
-        if (state_idx < x_size_) {
-            H[i][state_idx] = measurement_degree_[idx];
+    const auto count = static_cast<int>(validIndices.size());
+    auto observation = Zeros<float>(count, state_.Rows());
+    auto noise = Zeros<float>(count, count);
+    auto values = Zeros<float>(count, 1);
+    for (int row = 0; row < count; ++row)
+    {
+        const auto source = validIndices[row];
+        values[row][0] = measurement[source][0];
+        for (int column = 0; column < state_.Rows(); ++column)
+        {
+            observation[row][column] = config_.MeasurementModel[source][column];
         }
-        R[i][i] = r_diagonal_elements_[idx];
+        for (int column = 0; column < count; ++column)
+        {
+            noise[row][column] = config_.MeasurementNoise[source][validIndices[column]];
+        }
     }
-    // 清空 measured_vector_
-    std::fill(measured_vector_.Data(), measured_vector_.Data() + measured_vector_.Size(), NAN);
-    HT = Trans(H);
+
+    const auto crossCovariance = covariance_ * observation.Transposed();
+    const auto inverse = InvertInnovation(observation * crossCovariance + noise);
+    if (!inverse)
+    {
+        return std::nullopt;
+    }
+
+    const auto gain = crossCovariance * *inverse;
+    auto correctedState = state_ + gain * (values - observation * state_);
+    const auto residualProjection = Eye<float>(state_.Rows()) - gain * observation;
+    // Joseph 形式，避免简单相减破坏协方差的半正定性。
+    auto correctedCovariance = residualProjection * covariance_ * residualProjection.Transposed() +
+        gain * noise * gain.Transposed();
+    correctedCovariance += correctedCovariance.Transposed();
+    correctedCovariance *= 0.5f;
+    ApplyVarianceFloor(correctedCovariance, config_.MinimumVariance);
+    state_ = std::move(correctedState);
+    covariance_ = std::move(correctedCovariance);
+    return state_;
 }
 
-/**
- * @brief 更新观测矩阵
- * 
- */
-void CAlgo_Kf::Set_H(const Matrix<float>& H_in){
-    if (H_in.Rows() == z_size_ && H_in.Cols() == x_size_) {
-        H = H_in;
-        HT = Trans(H);
-    }
+const Matrix<float>& Kf::State() const noexcept
+{
+    return state_;
 }
 
-/**
- * @brief 更新观测噪声协方差
- * 
- */
-void CAlgo_Kf::Set_R(const Matrix<float>& R_in){
-    if (R_in.Rows() == z_size_ && R_in.Cols() == z_size_) {
-        R = R_in;
-    }
+const Matrix<float>& Kf::Covariance() const noexcept
+{
+    return covariance_;
 }
-    
+
 } // namespace robotpilots::algorithm

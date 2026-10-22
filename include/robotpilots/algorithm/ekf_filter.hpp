@@ -1,120 +1,66 @@
 #pragma once
 
 #include <functional>
+#include <optional>
+
+#include <etl/vector.h>
+
 #include "robotpilots/algorithm/matrix.hpp"
 
 namespace robotpilots::algorithm
 {
 
-/**
- * @brief 扩展卡尔曼滤波算法类
- * 
- */
-
+/// @brief 扩展卡尔曼滤波器，模型回调只读取当前估计并返回计算结果。
 class Ekf final
 {
 public:
-	Ekf() = default;
+    using StateFunction = std::function<Matrix<float>(
+        const Matrix<float>& state, const Matrix<float>& control, float deltaTime)>;
+    using MeasurementFunction = std::function<Matrix<float>(const Matrix<float>& state)>;
+    using StateJacobianFunction = StateFunction;
+    using MeasurementJacobianFunction = MeasurementFunction;
+    using CorrectionFunction = std::function<Matrix<float>(
+        const Matrix<float>& state, const Matrix<float>& correction)>;
 
-	//状态函数F(x，u)
-	using StateFunc =
-		std::function<Matrix<float>(Matrix<float> &, Matrix<float> &, float, Matrix<float> &, Matrix<float> &)>;
+    /// @brief n 为状态维度，m 为观测维度，均在 [1, 16] 内。
+    /// 协方差应对称半正定，参与校正的创新协方差必须正定。
+    struct Config
+    {
+        Matrix<float> InitialState;           ///< n x 1。
+        Matrix<float> InitialCovariance;      ///< n x n。
+        Matrix<float> ProcessNoise;           ///< n x n，每次 Predict 累加的离散过程噪声。
+        Matrix<float> MeasurementNoise;       ///< m x m。
+        StateFunction StateTransition;       ///< 必填，返回 n x 1 预测状态。
+        MeasurementFunction MeasurementModel; ///< 必填，返回 m x 1 预测观测。
+        StateJacobianFunction StateJacobian;  ///< 必填，在预测前状态处求值，返回 n x n。
+        MeasurementJacobianFunction MeasurementJacobian; ///< 必填，返回 m x n。
+        CorrectionFunction ApplyCorrection;   ///< 可选，默认 state + correction；可用于归一化状态。
+        std::optional<float> InnovationThreshold; ///< 可选，创新马氏距离平方的非负上限。
+        etl::vector<float, 16> MinimumVariance; ///< 可选，n 个非负状态方差下限。
+    };
 
-	//观测函数H(x)
-	using MeasureFunc = 
-		std::function<Matrix<float>(const Matrix<float> &)>;
+    explicit Ekf(Config config);
 
-	//协方差p
-	using PFunc = std::function<void(Matrix<float> &)>;
-	// 雅可比函数类型
-	using JacobianF =
-		std::function<void(Matrix<float> &, Matrix<float> &, float, Matrix<float> &)>;
+    /// @brief 立即推进状态与协方差；deltaTime 必须有限且非负，control 的形状由模型约定。
+    void Predict(float deltaTime, const Matrix<float>& control = {});
 
-	using JacobianH = std::function<void(const Matrix<float> &, Matrix<float> &)>;
+    /// @brief 校正当前估计，不隐式预测；非有限观测分量自动忽略。
+    /// 阈值针对本次有效观测的创新距离，不自动随有效观测数调整。
+    /// @return 成功时返回校正后的 n x 1 状态副本；无有效观测、创新计算失败或超过阈值时
+    /// 返回 std::nullopt，保持当前估计。
+    [[nodiscard]] std::optional<Matrix<float>> Update(const Matrix<float>& measurement);
 
-	// 卡方检验
-	using Chi = std::function<bool(Matrix<float> &, Matrix<float> &, const Matrix<float> &, const Matrix<float> &, const Matrix<float> &, float )>;
+    [[nodiscard]] const Matrix<float>& State() const noexcept;
+    [[nodiscard]] const Matrix<float>& Covariance() const noexcept;
 
-	// 状态估计函数
-	using Xhat = std::function<void(Matrix<float> &, const Matrix<float> &, Matrix<float> &,float)>;
-
-	// 卡方更新k
-	using Kfunc = std::function<void(Matrix<float> &)>;
-
-	struct Info
-	{
-		bool isitialized = false;	   ///< 是否完成初始化
-		Matrix<float> filtered_value; ///< 滤波输出
-	} Ekf_Info;
-
-	// 继承基类初始化结构体
-	struct InitParam
-	{
-		bool Chi_Set = false; ///< 是否设置了卡方检验标志
-		StateFunc f;   // 状态转移非线性函数
-		MeasureFunc h; // 观测非线性函数
-		JacobianF jacF; // 状态雅可比
-		JacobianH jacH; //观测雅可比
-		PFunc p_func; // 协方差更新函数
-		Chi chi;	// 卡方检验函数
-		Xhat Xhat_func; // 状态估计函数
-		Kfunc k_func; // 增益更新函数
-	};
-
-	EAppStatus UpdateHandler_() override;
+    /// @brief 最近一次 Update 的创新距离平方；尚未计算或本次无法计算时为空。
+    [[nodiscard]] std::optional<float> InnovationSquared() const noexcept;
 
 private:
-
-	float Chi_Square;         //卡方值
-	Matrix<float> Chi_Square_Mat; // 卡方检验矩阵
-	bool Chi_Set_ = false; ///< 是否设置了卡方检验标志
-	bool Chi_Pass = false;    // 卡方检验是否通过
-
-	//后验估计更新函数
-	Xhat Xhat_func_;
-
-	//卡方是否通过的函数
-	Chi chi_;
-
-	//增益更新函数
-	Kfunc k_func_;
-
-	// 非线性函数
-	StateFunc f_;
-
-	MeasureFunc h_;
-
-	//雅可比矩阵计算函数
-	JacobianF jacF_;
-
-	JacobianH jacH_;
-
-	//协方差更新函数
-	PFunc p_func_;
-
-	void Ekf_Predict();
-	void Ekf_Update();
-	
-	/* ========= 工具函数 ========= */
-
-	bool QuaternionEKF_Chi(void);// 卡方验证阈值
-
-	/*=========== end =================*/
-
-	void algo_EKF_jacF_update(void);
-
-	void algo_EKF_jacH_update(void);
-
-	void Algo_EKf_Pminus_Update(void);
-
-	void Algo_EKf_Xhatminus_Update(void);
-	
-	void Algo_EKf_K_Update(void);
-	
-	void Algo_EKf_Xhat_Update(void);
-	
+    const Config config_;
+    Matrix<float> state_;
+    Matrix<float> covariance_;
+    std::optional<float> innovationSquared_;
 };
 
 } // namespace robotpilots::algorithm
-
-#endif // ALGO_IMU_EKF_HPP

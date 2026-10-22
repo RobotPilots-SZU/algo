@@ -1,179 +1,210 @@
 #include "robotpilots/algorithm/ekf_filter.hpp"
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <utility>
+
 namespace robotpilots::algorithm
 {
-    EAppStatus Ekf::InitAlgo_(SFilterInitParam_Base &param)
+namespace
+{
+
+void RequireShape(const Matrix<float>& matrix, int rows, int columns)
+{
+    assert(matrix.Rows() == rows && matrix.Cols() == columns);
+    static_cast<void>(matrix);
+    static_cast<void>(rows);
+    static_cast<void>(columns);
+}
+
+void ApplyVarianceFloor(Matrix<float>& covariance, const etl::vector<float, 16>& minimum)
+{
+    for (std::size_t index = 0; index < minimum.size(); ++index)
     {
-        if(param.AlgoID != EAlgoID::ALGO_IMU_EKF) {
-            return APP_ERROR; // 确保传入的参数类型正确
-        }
-        // 调用基类初始化
-        EAppStatus status = CAlgo_Kf::InitAlgo_(param);
-        if (status != APP_OK) {
-            return status;
-        }
-
-        // 将基类参数转换为派生类参数
-        SAlgoEKfInitParam &ekf_param = static_cast<SAlgoEKfInitParam&>(param);
-
-        
-        Chi_Set_ = ekf_param.Chi_Set;
-        // 初始化非线性函数和雅可比函数
-        f_ = ekf_param.f;
-        h_ = ekf_param.h;
-        jacF_ = ekf_param.jacF;
-        jacH_ = ekf_param.jacH;
-        p_func_ = ekf_param.p_func;
-        Xhat_func_ = ekf_param.Xhat_func;
-        if (Chi_Set_)
-        {
-            chi_ = ekf_param.chi;
-            k_func_ = ekf_param.k_func;
-        }
-
-        Chi_Square_Mat = Zeros<float>(1, 1); // 初始化卡方检验矩阵
-        Chi_Square = 0.0f; // 初始化卡方值
-        Ekf_Info.isitialized = true; // 标记EKF已初始化
-        return APP_OK;
-    }
-    /**
-    * @brief 更新状态转移雅可比
-    * 
-    */
-    void  Ekf::algo_EKF_jacF_update()
-    {
-	    jacF_(xhat, u, DT, F);
-        FT = Trans(F);
-    }
-
-    /**
-     * @brief 更新观测雅可比
-     *
-     */
-    void Ekf::algo_EKF_jacH_update()
-    {
-	    jacH_(xhatMinus, H);
-        HT = Trans(H);
-    }
-
-    /**
-     * @brief EKF先验估计更新
-     *
-     */
-    void Ekf::Algo_EKf_Xhatminus_Update()
-    {
-        xhatMinus = f_(xhat, u, DT, F, B);
-    }
-
-    /**
-     * @brief EKF先验估计协方差更新
-     *
-     */
-    void Ekf::Algo_EKf_Pminus_Update()
-    {
-        p_func_(Pminus);
-        Algo_Kf_Pminus_Update();
-    }
-
-    /**
-     * @brief EKF增益更新，先调用基类的增益更新再进行动态调整（只有使用卡方时才使用这个函数）
-     *
-     */
-    void Ekf::Algo_EKf_K_Update(void)
-    {
-        K = Pminus * HT * S_inv;
-        k_func_(K);
-    }
-
-    /**
-     * @brief EKF后验最优估计更新
-     *
-     */
-    void Ekf::Algo_EKf_Xhat_Update()
-    {
-        Matrix<float> Correct = K * (z - h_(xhatMinus));
-        Xhat_func_(xhat, xhatMinus, Correct, DT);
-    }
-
-    bool Ekf::QuaternionEKF_Chi()
-    {
-        // 卡方检验
-        Matrix<float> Y = z - h_(xhatMinus);
-        S = H * Pminus * HT + R; // 残差协方差
-        S_inv = Inv(S);
-        Chi_Square_Mat = Trans(Y) * S_inv * Y;
-        Chi_Square = Chi_Square_Mat[0][0];
-        return chi_(K,P,Pminus, H,R,Chi_Square);
-    }
-
-    /**
-    * @brief EKF观测向量更新，预测步
-    *
-    */
-    void Ekf::Ekf_Predict()
-    {
-
-        // 状态预测（非线性）
-        Algo_EKf_Xhatminus_Update();
-
-        // 计算 F 雅可比
-        algo_EKF_jacF_update();
-
-        // 协方差预测
-        Algo_EKf_Pminus_Update();
-    }
-
-    //更新步
-    void Ekf::Ekf_Update()
-    {
-
-        //计算 H 雅可比
-        algo_EKF_jacH_update();
-
-        // 有效观测才做测量更新
-        if (measurement_valid_num_ > 0)
-        {
-            
-            if (Chi_Set_)
-            {
-                Chi_Pass = QuaternionEKF_Chi();
-                if(Chi_Pass)
-               {
-                   Algo_EKf_K_Update();
-                   Algo_EKf_Xhat_Update();
-                   Algo_Kf_P_Update();
-               }
-                else
-                {
-                    xhat = xhatMinus;
-                    P = Pminus;
-                }
-                
-            }
-            else// 没有设置卡方检验标志则直接更新
-            {
-                Algo_EKf_Xhat_Update();
-                Algo_Kf_P_Update();
-            }
-        }
-        else
-        {
-            xhat = xhatMinus;
-            P = Pminus;
-        }
-    
-        Kf_Info.filtered_value = xhat;
-        Ekf_Info.filtered_value = xhat;
-    }
-
-    /**
-     * @brief 主更新处理函数（在中断里要先调用Set_Measured_Vector更新观测向量，然后调用这个函数进行EKF更新）
-     *
-     */
-    EAppStatus Ekf::UpdateHandler_()
-    {
-        z = measured_vector_;
-        Ekf_Predict();
-        Ekf_Update();
-        return APP_OK;
+        covariance[index][index] = std::max(covariance[index][index], minimum[index]);
     }
 }
+
+// 使用 Cholesky 分解，所有临时矩阵均不超过原创新协方差的大小。
+std::optional<Matrix<float>> InvertInnovation(const Matrix<float>& covariance)
+{
+    const auto size = covariance.Rows();
+    auto lower = Zeros<float>(size, size);
+    for (int row = 0; row < size; ++row)
+    {
+        for (int column = 0; column <= row; ++column)
+        {
+            float value = covariance[row][column];
+            for (int index = 0; index < column; ++index)
+            {
+                value -= lower[row][index] * lower[column][index];
+            }
+            if (!std::isfinite(value) || (row == column && value <= 0.0f))
+            {
+                return std::nullopt;
+            }
+            lower[row][column] = row == column
+                ? std::sqrt(value) : value / lower[column][column];
+        }
+    }
+
+    auto inverse = Eye<float>(size);
+    for (int column = 0; column < size; ++column)
+    {
+        for (int row = 0; row < size; ++row)
+        {
+            for (int index = 0; index < row; ++index)
+            {
+                inverse[row][column] -= lower[row][index] * inverse[index][column];
+            }
+            inverse[row][column] /= lower[row][row];
+        }
+        for (int row = size - 1; row >= 0; --row)
+        {
+            for (int index = row + 1; index < size; ++index)
+            {
+                inverse[row][column] -= lower[index][row] * inverse[index][column];
+            }
+            inverse[row][column] /= lower[row][row];
+            if (!std::isfinite(inverse[row][column]))
+            {
+                return std::nullopt;
+            }
+        }
+    }
+    return inverse;
+}
+
+} // namespace
+
+Ekf::Ekf(Config config)
+    : config_(std::move(config)),
+      state_(config_.InitialState),
+      covariance_(config_.InitialCovariance)
+{
+    const auto stateSize = state_.Rows();
+    const auto measurementSize = config_.MeasurementNoise.Rows();
+    assert(stateSize > 0 && stateSize <= 16);
+    assert(measurementSize > 0 && measurementSize <= 16);
+    RequireShape(state_, stateSize, 1);
+    RequireShape(covariance_, stateSize, stateSize);
+    RequireShape(config_.ProcessNoise, stateSize, stateSize);
+    RequireShape(config_.MeasurementNoise, measurementSize, measurementSize);
+    assert(config_.StateTransition && config_.MeasurementModel &&
+           config_.StateJacobian && config_.MeasurementJacobian);
+    assert(!config_.InnovationThreshold ||
+           (std::isfinite(*config_.InnovationThreshold) && *config_.InnovationThreshold >= 0.0f));
+    assert(config_.MinimumVariance.empty() ||
+           config_.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
+    for ([[maybe_unused]] const auto minimum : config_.MinimumVariance)
+    {
+        assert(std::isfinite(minimum) && minimum >= 0.0f);
+    }
+    ApplyVarianceFloor(covariance_, config_.MinimumVariance);
+}
+
+void Ekf::Predict(float deltaTime, const Matrix<float>& control)
+{
+    assert(std::isfinite(deltaTime) && deltaTime >= 0.0f);
+    const auto transition = config_.StateJacobian(state_, control, deltaTime);
+    auto predictedState = config_.StateTransition(state_, control, deltaTime);
+    RequireShape(transition, state_.Rows(), state_.Rows());
+    RequireShape(predictedState, state_.Rows(), 1);
+    auto predictedCovariance = transition * covariance_ * transition.Transposed() + config_.ProcessNoise;
+    ApplyVarianceFloor(predictedCovariance, config_.MinimumVariance);
+    state_ = std::move(predictedState);
+    covariance_ = std::move(predictedCovariance);
+}
+
+std::optional<Matrix<float>> Ekf::Update(const Matrix<float>& measurement)
+{
+    innovationSquared_.reset();
+    RequireShape(measurement, config_.MeasurementNoise.Rows(), 1);
+    etl::vector<int, 16> validIndices;
+    for (int index = 0; index < measurement.Rows(); ++index)
+    {
+        if (std::isfinite(measurement[index][0]))
+        {
+            validIndices.push_back(index);
+        }
+    }
+    if (validIndices.empty())
+    {
+        return std::nullopt;
+    }
+
+    const auto expected = config_.MeasurementModel(state_);
+    const auto jacobian = config_.MeasurementJacobian(state_);
+    RequireShape(expected, measurement.Rows(), 1);
+    RequireShape(jacobian, measurement.Rows(), state_.Rows());
+
+    const auto count = static_cast<int>(validIndices.size());
+    auto observation = Zeros<float>(count, state_.Rows());
+    auto noise = Zeros<float>(count, count);
+    auto innovation = Zeros<float>(count, 1);
+    for (int row = 0; row < count; ++row)
+    {
+        const auto source = validIndices[row];
+        innovation[row][0] = measurement[source][0] - expected[source][0];
+        for (int column = 0; column < state_.Rows(); ++column)
+        {
+            observation[row][column] = jacobian[source][column];
+        }
+        for (int column = 0; column < count; ++column)
+        {
+            noise[row][column] = config_.MeasurementNoise[source][validIndices[column]];
+        }
+    }
+
+    const auto crossCovariance = covariance_ * observation.Transposed();
+    const auto inverse = InvertInnovation(observation * crossCovariance + noise);
+    if (!inverse)
+    {
+        return std::nullopt;
+    }
+
+    const auto distance = innovation.Transposed() * *inverse * innovation;
+    if (!std::isfinite(distance[0][0]) || distance[0][0] < 0.0f)
+    {
+        return std::nullopt;
+    }
+    innovationSquared_ = distance[0][0];
+    if (config_.InnovationThreshold && *innovationSquared_ > *config_.InnovationThreshold)
+    {
+        return std::nullopt;
+    }
+
+    const auto gain = crossCovariance * *inverse;
+    const auto correction = gain * innovation;
+    auto correctedState = config_.ApplyCorrection
+        ? config_.ApplyCorrection(state_, correction) : state_ + correction;
+    RequireShape(correctedState, state_.Rows(), 1);
+    const auto residualProjection = Eye<float>(state_.Rows()) - gain * observation;
+    // Joseph 形式，独立于是否启用创新检验。
+    auto correctedCovariance = residualProjection * covariance_ * residualProjection.Transposed() +
+        gain * noise * gain.Transposed();
+    correctedCovariance += correctedCovariance.Transposed();
+    correctedCovariance *= 0.5f;
+    ApplyVarianceFloor(correctedCovariance, config_.MinimumVariance);
+    state_ = std::move(correctedState);
+    covariance_ = std::move(correctedCovariance);
+    return state_;
+}
+
+const Matrix<float>& Ekf::State() const noexcept
+{
+    return state_;
+}
+
+const Matrix<float>& Ekf::Covariance() const noexcept
+{
+    return covariance_;
+}
+
+std::optional<float> Ekf::InnovationSquared() const noexcept
+{
+    return innovationSquared_;
+}
+
+} // namespace robotpilots::algorithm
