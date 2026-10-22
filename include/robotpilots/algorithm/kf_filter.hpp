@@ -13,7 +13,7 @@
 #define ALGO_KF_FILTER_HPP
 
 #include "filter_common.hpp"
-#include "rp_matrix.hpp"
+#include "robotpilots/algorithm/matrix.hpp"
 
 namespace robotpilots::algorithm{
 
@@ -58,7 +58,7 @@ public:
      * @param 状态转移矩阵F
      * 
      */
-    void Set_F(const Matrix<float>& F) { this->F = F; this->FT = trans(this->F);}
+    void Set_F(const Matrix<float>& F) { this->F = F; this->FT = Trans(this->F);}
 
     /**
      * @brief 设置控制矩阵
@@ -82,7 +82,7 @@ public:
      * @param 所有传感器的最新读数 measured_vector
      */
     void Set_Measured_Vector(const Matrix<float>& measured_vector) {
-        if (measured_vector.rows() == z_size_ && measured_vector.cols() == 1) {
+        if (measured_vector.Rows() == z_size_ && measured_vector.Cols() == 1) {
             this->measured_vector_ = measured_vector;
         }
     }

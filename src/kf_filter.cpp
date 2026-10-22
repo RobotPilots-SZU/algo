@@ -14,7 +14,9 @@
 #define deg2rad(x) ((x) * 0.017453292519943295769236907684886)
 #define rad2deg(x) ((x) * 57.295779513082320876798154814105)
 
-namespace robotpilots::algorithm{
+
+namespace robotpilots::algorithm
+{
     
 /**
  * @brief 初始化卡尔曼滤波
@@ -46,25 +48,25 @@ EAppStatus CAlgo_Kf::InitAlgo_(SFilterInitParam_Base &param){
     }
     
     // 初始化卡尔曼黄金五式参与运算的矩阵
-    xhat = zeros<float>(x_size_, 1);
-    xhatMinus = zeros<float>(x_size_, 1);
-    F = zeros<float>(x_size_, x_size_);
-    FT = zeros<float>(x_size_, x_size_);
-    P = eye<float>(x_size_);
-    Pminus = zeros<float>(x_size_, x_size_);
-    Q = zeros<float>(x_size_, x_size_);
+    xhat = Zeros<float>(x_size_, 1);
+    xhatMinus = Zeros<float>(x_size_, 1);
+    F = Zeros<float>(x_size_, x_size_);
+    FT = Zeros<float>(x_size_, x_size_);
+    P = Eye<float>(x_size_);
+    Pminus = Zeros<float>(x_size_, x_size_);
+    Q = Zeros<float>(x_size_, x_size_);
     if (u_size_ > 0) {      // 系统有输入的时候才初始化控制矩阵和输入向量
-        B = zeros<float>(x_size_, u_size_);
-        u = zeros<float>(u_size_, 1);
+        B = Zeros<float>(x_size_, u_size_);
+        u = Zeros<float>(u_size_, 1);
     }
-    H = zeros<float>(z_size_, x_size_);
-    HT = zeros<float>(x_size_, z_size_);
-    R = zeros<float>(z_size_, z_size_);
-    K = zeros<float>(x_size_, z_size_);
-    S = zeros<float>(z_size_, z_size_);
-    S_inv = zeros<float>(z_size_, z_size_);
-    z = zeros<float>(z_size_, 1);
-    measured_vector_ = zeros<float>(z_size_,1);
+    H = Zeros<float>(z_size_, x_size_);
+    HT = Zeros<float>(x_size_, z_size_);
+    R = Zeros<float>(z_size_, z_size_);
+    K = Zeros<float>(x_size_, z_size_);
+    S = Zeros<float>(z_size_, z_size_);
+    S_inv = Zeros<float>(z_size_, z_size_);
+    z = Zeros<float>(z_size_, 1);
+    measured_vector_ = Zeros<float>(z_size_,1);
     if (use_auto_adjustment_)
     {
     if (measurement_map_.size() != z_size_)return APP_ERROR;
@@ -139,7 +141,7 @@ void CAlgo_Kf::Algo_Kf_Pminus_Update(){
  */
 void CAlgo_Kf::Algo_Kf_K_Update(void){
     S = H * Pminus * HT + R;
-    S_inv = inv(S);
+    S_inv = Inv(S);
     K = Pminus * HT * S_inv;
 }
 
@@ -157,9 +159,9 @@ void CAlgo_Kf::Algo_Kf_Xhat_Update(void){
  */
 void CAlgo_Kf::Algo_Kf_P_Update(void){
     Matrix<float>I;
-    I = eye<float>(x_size_);
+    I = Eye<float>(x_size_);
     Matrix<float> A = I - K * H;
-    P = A * Pminus * trans(A) + K * R * trans(K);
+    P = A * Pminus * Trans(A) + K * R * Trans(K);
 }
 
 /**
@@ -191,8 +193,8 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
     H = Matrix<float>(measurement_valid_num_, x_size_);
     R = Matrix<float>(measurement_valid_num_, measurement_valid_num_);
 
-    etl::fill(H.get_data(), H.get_data() + H.size(), 0.0f);
-    etl::fill(R.get_data(), R.get_data() + R.size(), 0.0f);
+    etl::fill(H.Data(), H.Data() + H.Size(), 0.0f);
+    etl::fill(R.Data(), R.Data() + R.Size(), 0.0f);
 
     for (uint8_t i = 0; i < measurement_valid_num_; ++i) {
         uint8_t idx = valid_indices[i];
@@ -205,8 +207,8 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
         R[i][i] = r_diagonal_elements_[idx];
     }
     // 清空 measured_vector_
-    std::fill(measured_vector_.get_data(), measured_vector_.get_data() + measured_vector_.size(), NAN);
-    HT = trans(H);
+    std::fill(measured_vector_.Data(), measured_vector_.Data() + measured_vector_.Size(), NAN);
+    HT = Trans(H);
 }
 
 /**
@@ -214,9 +216,9 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
  * 
  */
 void CAlgo_Kf::Set_H(const Matrix<float>& H_in){
-    if (H_in.rows() == z_size_ && H_in.cols() == x_size_) {
+    if (H_in.Rows() == z_size_ && H_in.Cols() == x_size_) {
         H = H_in;
-        HT = trans(H);
+        HT = Trans(H);
     }
 }
 
@@ -225,7 +227,7 @@ void CAlgo_Kf::Set_H(const Matrix<float>& H_in){
  * 
  */
 void CAlgo_Kf::Set_R(const Matrix<float>& R_in){
-    if (R_in.rows() == z_size_ && R_in.cols() == z_size_) {
+    if (R_in.Rows() == z_size_ && R_in.Cols() == z_size_) {
         R = R_in;
     }
 }

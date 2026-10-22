@@ -30,7 +30,7 @@ namespace robotpilots::algorithm
             k_func_ = ekf_param.k_func;
         }
 
-        Chi_Square_Mat = zeros<float>(1, 1); // 初始化卡方检验矩阵
+        Chi_Square_Mat = Zeros<float>(1, 1); // 初始化卡方检验矩阵
         Chi_Square = 0.0f; // 初始化卡方值
         Ekf_Info.isitialized = true; // 标记EKF已初始化
         return APP_OK;
@@ -42,7 +42,7 @@ namespace robotpilots::algorithm
     void  Ekf::algo_EKF_jacF_update()
     {
 	    jacF_(xhat, u, DT, F);
-	    FT = trans(F);
+        FT = Trans(F);
     }
 
     /**
@@ -52,7 +52,7 @@ namespace robotpilots::algorithm
     void Ekf::algo_EKF_jacH_update()
     {
 	    jacH_(xhatMinus, H);
-	    HT = trans(H);
+        HT = Trans(H);
     }
 
     /**
@@ -99,8 +99,8 @@ namespace robotpilots::algorithm
         // 卡方检验
         Matrix<float> Y = z - h_(xhatMinus);
         S = H * Pminus * HT + R; // 残差协方差
-        S_inv = inv(S);
-        Chi_Square_Mat = trans(Y) * S_inv * Y;
+        S_inv = Inv(S);
+        Chi_Square_Mat = Trans(Y) * S_inv * Y;
         Chi_Square = Chi_Square_Mat[0][0];
         return chi_(K,P,Pminus, H,R,Chi_Square);
     }
