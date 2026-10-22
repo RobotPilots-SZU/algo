@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef ALGO_PID_HPP
-#define ALGO_PID_HPP
+#pragma once
 
 #include <etl/algorithm.h>
 #include <cmath>
@@ -94,4 +93,3 @@ private:
 
 } // namespace robotpilots::algorithm
 
-#endif // ALGO_PID_HPP

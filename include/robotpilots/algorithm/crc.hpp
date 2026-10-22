@@ -15,21 +15,22 @@
 #include <cstdint>
 #include <etl/span.h>
 
-namespace robotpilots::algorithm {
+namespace robotpilots::algorithm
+{
 
 /**
- * @brief Calculate CRC8 Checksum Value from Data Buffer
- * @param data[in] Data Buffer
- * @param init Initial CRC8 Value
+ * @brief 从数据缓冲区计算 crc8.
+ * @param data[in] 数据缓冲区输入
+ * @param init 初始CRC值
  *
  * @return CRC8 Checksum Value
  */
 uint8_t Crc8Calculate(etl::span<const uint8_t> data, uint8_t init = 0xff);
 
 /**
- * @brief Calculate CRC16 Checksum Value from Data Buffer
- * @param data[in] Data Buffer
- * @param init Initial CRC16 Value
+ * @brief 从数据缓冲区计算 crc8.
+ * @param data[in] 数据缓冲区输入
+ * @param init 初始CRC值
  *
  * @return CRC16 Checksum Value
  */
