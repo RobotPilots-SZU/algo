@@ -1,9 +1,7 @@
-#ifndef ALGO_IMU_EKF_HPP
-#define ALGO_IMU_EKF_HPP
+#pragma once
 
-#include "filter_common.hpp"
-#include "kf_filter.hpp"
 #include <functional>
+#include "robotpilots/algorithm/matrix.hpp"
 
 namespace robotpilots::algorithm
 {
@@ -13,12 +11,10 @@ namespace robotpilots::algorithm
  * 
  */
 
-class CAlgo_Ekf final: public CAlgo_Kf
+class Ekf final
 {
 public:
-
-	CAlgo_Ekf() = default;
-	~CAlgo_Ekf() noexcept { UnregisterAlgorithm_(); };
+	Ekf() = default;
 
 	//状态函数F(x，u)
 	using StateFunc =
@@ -45,14 +41,14 @@ public:
 	// 卡方更新k
 	using Kfunc = std::function<void(Matrixt<float> &)>;
 
-	struct SAlgoEKfInfo
+	struct Info
 	{
 		bool isitialized = false;	   ///< 是否完成初始化
 		Matrixt<float> filtered_value; ///< 滤波输出
 	} Ekf_Info;
 
 	// 继承基类初始化结构体
-	struct SAlgoEKfInitParam : public SAlgoKfInitParam
+	struct InitParam
 	{
 		bool Chi_Set = false; ///< 是否设置了卡方检验标志
 		StateFunc f;   // 状态转移非线性函数
@@ -64,9 +60,6 @@ public:
 		Xhat Xhat_func; // 状态估计函数
 		Kfunc k_func; // 增益更新函数
 	};
-
-	/*main task*/
-	EAppStatus InitAlgo_(SFilterInitParam_Base &param) override;
 
 	EAppStatus UpdateHandler_() override;
 

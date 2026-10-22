@@ -1,7 +1,7 @@
 #include "robotpilots/algorithm/ekf_filter.hpp"
 namespace robotpilots::algorithm
 {
-    EAppStatus CAlgo_Ekf::InitAlgo_(SFilterInitParam_Base &param)
+    EAppStatus Ekf::InitAlgo_(SFilterInitParam_Base &param)
     {
         if(param.AlgoID != EAlgoID::ALGO_IMU_EKF) {
             return APP_ERROR; // 确保传入的参数类型正确
@@ -39,7 +39,7 @@ namespace robotpilots::algorithm
     * @brief 更新状态转移雅可比
     * 
     */
-    void  CAlgo_Ekf::algo_EKF_jacF_update()
+    void  Ekf::algo_EKF_jacF_update()
     {
 	    jacF_(xhat, u, DT, F);
 	    FT = trans(F);
@@ -49,7 +49,7 @@ namespace robotpilots::algorithm
      * @brief 更新观测雅可比
      *
      */
-    void CAlgo_Ekf::algo_EKF_jacH_update()
+    void Ekf::algo_EKF_jacH_update()
     {
 	    jacH_(xhatMinus, H);
 	    HT = trans(H);
@@ -59,7 +59,7 @@ namespace robotpilots::algorithm
      * @brief EKF先验估计更新
      *
      */
-    void CAlgo_Ekf::Algo_EKf_Xhatminus_Update()
+    void Ekf::Algo_EKf_Xhatminus_Update()
     {
         xhatMinus = f_(xhat, u, DT, F, B);
     }
@@ -68,7 +68,7 @@ namespace robotpilots::algorithm
      * @brief EKF先验估计协方差更新
      *
      */
-    void CAlgo_Ekf::Algo_EKf_Pminus_Update()
+    void Ekf::Algo_EKf_Pminus_Update()
     {
         p_func_(Pminus);
         Algo_Kf_Pminus_Update();
@@ -78,7 +78,7 @@ namespace robotpilots::algorithm
      * @brief EKF增益更新，先调用基类的增益更新再进行动态调整（只有使用卡方时才使用这个函数）
      *
      */
-    void CAlgo_Ekf::Algo_EKf_K_Update(void)
+    void Ekf::Algo_EKf_K_Update(void)
     {
         K = Pminus * HT * S_inv;
         k_func_(K);
@@ -88,13 +88,13 @@ namespace robotpilots::algorithm
      * @brief EKF后验最优估计更新
      *
      */
-    void CAlgo_Ekf::Algo_EKf_Xhat_Update()
+    void Ekf::Algo_EKf_Xhat_Update()
     {
         Matrixt<float> Correct = K * (z - h_(xhatMinus));
         Xhat_func_(xhat, xhatMinus, Correct, DT);
     }
 
-    bool CAlgo_Ekf::QuaternionEKF_Chi()
+    bool Ekf::QuaternionEKF_Chi()
     {
         // 卡方检验
         Matrixt<float> Y = z - h_(xhatMinus);
@@ -109,7 +109,7 @@ namespace robotpilots::algorithm
     * @brief EKF观测向量更新，预测步
     *
     */
-    void CAlgo_Ekf::Ekf_Predict()
+    void Ekf::Ekf_Predict()
     {
 
         // 状态预测（非线性）
@@ -123,7 +123,7 @@ namespace robotpilots::algorithm
     }
 
     //更新步
-    void CAlgo_Ekf::Ekf_Update()
+    void Ekf::Ekf_Update()
     {
 
         //计算 H 雅可比
@@ -169,7 +169,7 @@ namespace robotpilots::algorithm
      * @brief 主更新处理函数（在中断里要先调用Set_Measured_Vector更新观测向量，然后调用这个函数进行EKF更新）
      *
      */
-    EAppStatus CAlgo_Ekf::UpdateHandler_()
+    EAppStatus Ekf::UpdateHandler_()
     {
         z = measured_vector_;
         Ekf_Predict();
