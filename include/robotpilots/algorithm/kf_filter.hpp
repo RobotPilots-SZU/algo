@@ -40,7 +40,7 @@ public:
     // 卡尔曼滤波信息结构体+实例
     struct SAlgoKfInfo{
         bool isitialized = false;                   ///< 是否完成初始化
-        Matrixt<float> filtered_value;              ///< 滤波输出
+        Matrix<float> filtered_value;              ///< 滤波输出
     } Kf_Info;
 
     
@@ -58,30 +58,30 @@ public:
      * @param 状态转移矩阵F
      * 
      */
-    void Set_F(const Matrixt<float>& F) { this->F = F; this->FT = trans(this->F);}
+    void Set_F(const Matrix<float>& F) { this->F = F; this->FT = trans(this->F);}
 
     /**
      * @brief 设置控制矩阵
      * @param 控制矩阵B
      * 
      */
-    void Set_B(const Matrixt<float>& B) { this->B = B; }
+    void Set_B(const Matrix<float>& B) { this->B = B; }
 
     /**
      * @brief 设置过程噪声协方差矩阵
      * @param 过程噪声协方差矩阵Q
      * 
      */
-    void Set_Q(const Matrixt<float>& Q) { this->Q = Q; }
+    void Set_Q(const Matrix<float>& Q) { this->Q = Q; }
 
-    void Set_H(const Matrixt<float>& H_in);
-    void Set_R(const Matrixt<float>& R_in);
+    void Set_H(const Matrix<float>& H_in);
+    void Set_R(const Matrix<float>& R_in);
 
     /**
      * @brief 设置原始测量向量 (在读取传感器数据处调用)
      * @param 所有传感器的最新读数 measured_vector
      */
-    void Set_Measured_Vector(const Matrixt<float>& measured_vector) {
+    void Set_Measured_Vector(const Matrix<float>& measured_vector) {
         if (measured_vector.rows() == z_size_ && measured_vector.cols() == 1) {
             this->measured_vector_ = measured_vector;
         }
@@ -91,7 +91,7 @@ public:
      * @brief 设置初始状态
      * @param 状态估计向量xhat_in
      */
-    void Set_xhat(const Matrixt<float>& xhat_in) { this->xhat = xhat_in; }
+    void Set_xhat(const Matrix<float>& xhat_in) { this->xhat = xhat_in; }
 
     /**
      * @brief 设置调度周期
@@ -103,7 +103,7 @@ public:
      * @brief 设置后验估计协方差矩阵，使系统刚开始更快收敛
      * @param 后验估计协方差矩阵P
      */
-    void Set_P(const Matrixt<float>& P_in) { this->P = P_in; }
+    void Set_P(const Matrix<float>& P_in) { this->P = P_in; }
     
     virtual EAppStatus InitAlgo_(SFilterInitParam_Base &param) ;   ///< 初始化
 
@@ -112,20 +112,20 @@ public:
 protected:
     float_t DT = 0.0f; ///< 调度周期
     // Matrixs
-    Matrixt<float> xhat;            ///< 后验最优估计
-    Matrixt<float> xhatMinus;       ///< 先验估计
-    Matrixt<float> Pminus;          ///< 先验估计协方差矩阵
-    Matrixt<float> P;               ///< 后验估计协方差矩阵
-    Matrixt<float> F, FT;           ///< 状态转移矩阵及其转置
-    Matrixt<float> B;               ///< 控制矩阵
-    Matrixt<float> Q;               ///< 过程噪声协方差矩阵
-    Matrixt<float> H, HT;           ///< 观测矩阵及其转置
-    Matrixt<float> R;               ///< 测量噪声协方差矩阵
-    Matrixt<float> K;               ///< 卡尔曼增益矩阵
-    Matrixt<float> S;               ///< 观测残差协方差矩阵
-    Matrixt<float> S_inv;           
-    Matrixt<float> z;               ///< 观测向量
-    Matrixt<float> u;               ///< 输入向量
+    Matrix<float> xhat;            ///< 后验最优估计
+    Matrix<float> xhatMinus;       ///< 先验估计
+    Matrix<float> Pminus;          ///< 先验估计协方差矩阵
+    Matrix<float> P;               ///< 后验估计协方差矩阵
+    Matrix<float> F, FT;           ///< 状态转移矩阵及其转置
+    Matrix<float> B;               ///< 控制矩阵
+    Matrix<float> Q;               ///< 过程噪声协方差矩阵
+    Matrix<float> H, HT;           ///< 观测矩阵及其转置
+    Matrix<float> R;               ///< 测量噪声协方差矩阵
+    Matrix<float> K;               ///< 卡尔曼增益矩阵
+    Matrix<float> S;               ///< 观测残差协方差矩阵
+    Matrix<float> S_inv;           
+    Matrix<float> z;               ///< 观测向量
+    Matrix<float> u;               ///< 输入向量
 
     // Size
     uint8_t u_size_;                ///< 输入量维度
@@ -135,7 +135,7 @@ protected:
     // Auto Adjustment related
     bool use_auto_adjustment_;                      ///< 是否启用动态调整
     uint8_t measurement_valid_num_;                 ///< 当前周期有效测量数
-    Matrixt<float> measured_vector_;                ///< 原始测量向量(由传感器填充)
+    Matrix<float> measured_vector_;                ///< 原始测量向量(由传感器填充)
     etl::vector<uint8_t, 16> measurement_map_;          ///< 观测量->状态量缩放倍数
     etl::vector<float, 16> measurement_degree_;         ///< 观测矩阵H构建系数
     etl::vector<float, 16> r_diagonal_elements_;        ///< 过程误差R构建系数

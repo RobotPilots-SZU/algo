@@ -90,14 +90,14 @@ namespace robotpilots::algorithm
      */
     void Ekf::Algo_EKf_Xhat_Update()
     {
-        Matrixt<float> Correct = K * (z - h_(xhatMinus));
+        Matrix<float> Correct = K * (z - h_(xhatMinus));
         Xhat_func_(xhat, xhatMinus, Correct, DT);
     }
 
     bool Ekf::QuaternionEKF_Chi()
     {
         // 卡方检验
-        Matrixt<float> Y = z - h_(xhatMinus);
+        Matrix<float> Y = z - h_(xhatMinus);
         S = H * Pminus * HT + R; // 残差协方差
         S_inv = inv(S);
         Chi_Square_Mat = trans(Y) * S_inv * Y;

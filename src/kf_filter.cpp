@@ -156,9 +156,9 @@ void CAlgo_Kf::Algo_Kf_Xhat_Update(void){
  * 
  */
 void CAlgo_Kf::Algo_Kf_P_Update(void){
-    Matrixt<float>I;
+    Matrix<float>I;
     I = eye<float>(x_size_);
-    Matrixt<float> A = I - K * H;
+    Matrix<float> A = I - K * H;
     P = A * Pminus * trans(A) + K * R * trans(K);
 }
 
@@ -187,9 +187,9 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
     if (measurement_valid_num_ == 0) return;
 
     // 动态重构 z, H, R
-    z = Matrixt<float>(measurement_valid_num_, 1);
-    H = Matrixt<float>(measurement_valid_num_, x_size_);
-    R = Matrixt<float>(measurement_valid_num_, measurement_valid_num_);
+    z = Matrix<float>(measurement_valid_num_, 1);
+    H = Matrix<float>(measurement_valid_num_, x_size_);
+    R = Matrix<float>(measurement_valid_num_, measurement_valid_num_);
 
     etl::fill(H.get_data(), H.get_data() + H.size(), 0.0f);
     etl::fill(R.get_data(), R.get_data() + R.size(), 0.0f);
@@ -213,7 +213,7 @@ void CAlgo_Kf::Algo_Kf_Adjustment() {
  * @brief 更新观测矩阵
  * 
  */
-void CAlgo_Kf::Set_H(const Matrixt<float>& H_in){
+void CAlgo_Kf::Set_H(const Matrix<float>& H_in){
     if (H_in.rows() == z_size_ && H_in.cols() == x_size_) {
         H = H_in;
         HT = trans(H);
@@ -224,7 +224,7 @@ void CAlgo_Kf::Set_H(const Matrixt<float>& H_in){
  * @brief 更新观测噪声协方差
  * 
  */
-void CAlgo_Kf::Set_R(const Matrixt<float>& R_in){
+void CAlgo_Kf::Set_R(const Matrix<float>& R_in){
     if (R_in.rows() == z_size_ && R_in.cols() == z_size_) {
         R = R_in;
     }

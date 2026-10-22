@@ -18,33 +18,33 @@ public:
 
 	//状态函数F(x，u)
 	using StateFunc =
-		std::function<Matrixt<float>(Matrixt<float> &, Matrixt<float> &, float, Matrixt<float> &, Matrixt<float> &)>;
+		std::function<Matrix<float>(Matrix<float> &, Matrix<float> &, float, Matrix<float> &, Matrix<float> &)>;
 
 	//观测函数H(x)
 	using MeasureFunc = 
-		std::function<Matrixt<float>(const Matrixt<float> &)>;
+		std::function<Matrix<float>(const Matrix<float> &)>;
 
 	//协方差p
-	using PFunc = std::function<void(Matrixt<float> &)>;
+	using PFunc = std::function<void(Matrix<float> &)>;
 	// 雅可比函数类型
 	using JacobianF =
-		std::function<void(Matrixt<float> &, Matrixt<float> &, float, Matrixt<float> &)>;
+		std::function<void(Matrix<float> &, Matrix<float> &, float, Matrix<float> &)>;
 
-	using JacobianH = std::function<void(const Matrixt<float> &, Matrixt<float> &)>;
+	using JacobianH = std::function<void(const Matrix<float> &, Matrix<float> &)>;
 
 	// 卡方检验
-	using Chi = std::function<bool(Matrixt<float> &, Matrixt<float> &, const Matrixt<float> &, const Matrixt<float> &, const Matrixt<float> &, float )>;
+	using Chi = std::function<bool(Matrix<float> &, Matrix<float> &, const Matrix<float> &, const Matrix<float> &, const Matrix<float> &, float )>;
 
 	// 状态估计函数
-	using Xhat = std::function<void(Matrixt<float> &, const Matrixt<float> &, Matrixt<float> &,float)>;
+	using Xhat = std::function<void(Matrix<float> &, const Matrix<float> &, Matrix<float> &,float)>;
 
 	// 卡方更新k
-	using Kfunc = std::function<void(Matrixt<float> &)>;
+	using Kfunc = std::function<void(Matrix<float> &)>;
 
 	struct Info
 	{
 		bool isitialized = false;	   ///< 是否完成初始化
-		Matrixt<float> filtered_value; ///< 滤波输出
+		Matrix<float> filtered_value; ///< 滤波输出
 	} Ekf_Info;
 
 	// 继承基类初始化结构体
@@ -66,7 +66,7 @@ public:
 private:
 
 	float Chi_Square;         //卡方值
-	Matrixt<float> Chi_Square_Mat; // 卡方检验矩阵
+	Matrix<float> Chi_Square_Mat; // 卡方检验矩阵
 	bool Chi_Set_ = false; ///< 是否设置了卡方检验标志
 	bool Chi_Pass = false;    // 卡方检验是否通过
 
