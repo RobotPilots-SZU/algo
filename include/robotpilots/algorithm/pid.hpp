@@ -2,7 +2,7 @@
  * @file pid.hpp
  * @author cuteelaina (1105549920@qq.com)
  * @brief PID 控制器
- * @version 1.0
+ * @version 2.0
  * @date 2026-05-28
  *
  * @copyright Copyright (c) 2026
@@ -12,127 +12,125 @@
 #ifndef ALGO_PID_HPP
 #define ALGO_PID_HPP
 
+#include <algorithm>
 #include <cmath>
-#include <cstdint>
-#include "conf_algo.hpp"
+#include <type_traits>
 
-namespace robotpilots::algorithm {
+namespace robotpilots::algorithm
+{
 
 /**
- * @brief PID算法类
- * 
+ * @brief 将误差归一化到周期循环区间 [-period / 2, period / 2)
+ * @param error 原始误差
+ * @param period 循环周期, 必须大于 0
+ * @return 归一化后的误差
  */
-class CAlgoPid{
+template<typename T>
+constexpr T wrap_error(T error, T period)
+{
+	static_assert(std::is_floating_point_v<T>, "wrap_error requires a floating point type");
+	assert(period > T{});
+
+	const T half = period / T{2};
+
+	while (error > half) {
+		error -= period;
+	}
+
+	while (error < -half) {
+		error += period;
+	}
+
+	return error;
+}
+
+/**
+ * @brief 输入死区, 误差绝对值小于阈值时归零
+ * @param error 原始误差
+ * @param threshold 死区阈值
+ * @return 死区处理后的误差
+ */
+template<typename T>
+constexpr T deadband(T error, T threshold)
+{
+	static_assert(std::is_floating_point_v<T>, "deadband requires a floating point type");
+
+	return std::abs(error) < threshold ? T{} : error;
+}
+
+/**
+ * @brief PID 控制器
+ * @note 只负责根据误差和采样周期计算输出, 环回、限幅、死区等由外部处理
+ */
+template<typename T = float>
+class Pid
+{
 public:
-    /**
-     * @brief 定义pid的误差计算模式的枚举变量
-     * 
-     */
-    enum class EPidErrorMode{
-        NORMAL,      ///< 正常模式
-        ANGLE,       ///< 角度模式(误差范围在-180.0f-180.0f)
-        MACHINE,     ///< 机械模式(误差范围在-4096 - 4096(default))
-    };
+	struct Config
+	{
+		T kp = {};                ///< 比例系数
+		T ki = {};                ///< 积分系数
+		T kd = {};                ///< 微分系数
 
-    /**
-     * @brief 定义pid初始化结构体
-     * 
-     */
-    struct SAlgoInitParam_Pid{
-        uint16_t tickRate = 1000; ///< 定时器频率(default:1000Hz)，用于可视化
-        float_t kp = 0.0f; ///< 比例系数
-        float_t ki = 0.0f; ///< 积分系数
-        float_t kd = 0.0f; ///< 微分系数
-        float_t Input_deadband = 0.0f; ///< 输入死区
-        float_t maxOutput = 0.0f; ///< 最大输出
-        float_t maxIntegral = 0.0f; ///< 最大积分
-        float_t input_integralSeparation = 0.0f; ///< 积分分离值
-        float_t sustainable_output = 0.0f; ///< 可持续输出
-        uint32_t sustainable_time = 0; ///< 可持续时间
-        uint32_t recover_time = 0; ///< 恢复时间
-        uint16_t MachineModeErrorRange = 8192; ///< 机械模式误差范围
-        EPidErrorMode errorMode = EPidErrorMode::NORMAL; ///< 误差计算模式
-    };
+		T integral_limit = {};    ///< 积分限幅, <= 0 表示不限幅
+		T integral_separation = {}; ///< 积分分离阈值, <= 0 表示不分离
+	};
 
-    // pid状态
-    EAppStatus PidStatus = EAppStatus::APP_RESET;
+	explicit Pid(const Config config) : config_(config) {}
 
-    /**
-     * @brief 初始化PID
-     * 
-     */
-    EAppStatus InitPID(const SAlgoInitParam_Pid *pStructInitParam);
+	/**
+	 * @brief 根据误差更新 PID 并返回输出
+	 * @param error 误差, 需由外部计算
+	 * @param dt 采样周期, 单位为秒, 输入需 >0
+	 * @return PID 输出
+	 */
+	T update(const T error, const T dt)
+	{
+		assert(dt > T{});
 
-    /**
-     * @brief 根据目标值和测量值更新PID控制器并返回输出值
-     * 
-     */
-    float_t UpdatePidController(const float_t &target, const float_t &measure);
+		if (config_.integral_separation > T{} &&
+			std::abs(error) > config_.integral_separation)
+		{
+			integral_ = T{};
+		}
+		else
+		{
+			integral_ += error * dt;
+			integral_ = limit(integral_, config_.integral_limit);
+		}
 
-    /**
-     * @brief 重置PID控制器
-     * 
-     */
-    EAppStatus ResetPidController();
-    
+		const T derivative = initialized_ ? (error - last_error_) / dt : T{};
+
+		last_error_ = error;
+		initialized_ = true;
+
+		return config_.kp * error
+			 + config_.ki * integral_
+			 + config_.kd * derivative;
+	}
+
+	/**
+	 * @brief 重置 PID 内部状态
+	 */
+	void reset()
+	{
+		integral_ = T{};
+		last_error_ = T{};
+		initialized_ = false;
+	}
+
 private:
-    /**
-     * @brief 定义一个结构体，存放一个线程中pid的单次运算值
-     * 
-     */
-    struct SPidInfo{
-        float_t pOut = 0.0f; ///< 比例输出
-        float_t iOut = 0.0f; ///< 积分输出
-        float_t dOut = 0.0f; ///< 微分输出
-        float_t output = 0.0f; ///< 总输出
-        float_t integral = 0.0f; ///< 积分值
-        float_t derivative = 0.0f; ///< 微分值
-        float_t lastError = 0.0f; ///< 上一次的误差
-        uint32_t Time_exceed = 0; // 超出时间
-        uint32_t Time_recover = 0; // 恢复时间
-        bool is_limit = false; // 是否限制
-    };
+	static constexpr T limit(const T value, const T bound)
+	{
+		return std::clamp(value, -bound, bound);
+	}
 
-    // pid参数
-    float_t kp_ = 0.0f;
-    float_t ki_ = 0.0f;
-    float_t kd_ = 0.0f;
+	Config config_;
 
-    // pid额外参数
-    float_t inputDeadband_ = 0.0f;
-    float_t input_integralSeparation_ = 0.0f; // 积分分离值
-    float_t maxOutput_ = 0.0f;
-    float_t maxIntegral_ = 0.0f;
-    uint16_t MachineModeErrorRange_ = 8192;
-
-    float_t sustainable_output_ = 0.0f; ///< 可持续输出
-    uint32_t sustainable_time_ = 0.0f; ///< 可持续时间
-    uint32_t recover_time_ = 0.0f; ///< 恢复时间
-
-    // pid线程数与定时器频率
-    uint8_t threadNum_ = 1;
-    uint16_t tickRate_ = 1000;
-
-    // pid误差计算模式
-    EPidErrorMode errorMode_ = EPidErrorMode::NORMAL;
-
-    // pid各线程计算结果存储缓冲区
-    SPidInfo SPidInfo_;
-
-    /**
-     * @brief 根据误差计算模式计算误差
-     * 
-     */
-    float_t CalcError_(const float_t &target, const float_t &measure);
-
-    /**
-     * @brief 计算PID控制器的输出值，并存储运算值
-     * 
-     */
-    float CalcOutput_(const float error, SPidInfo &info);
-
+	T integral_ = {};
+	T last_error_ = {};
+	bool initialized_ = false;
 };
-
 
 } // namespace robotpilots::algorithm
 
