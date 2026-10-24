@@ -41,9 +41,9 @@ public:
     [[nodiscard]] const Matrix<float>& Covariance() const noexcept;
 
 private:
-    const Config config_;
-    Matrix<float> state_;
-    Matrix<float> covariance_;
+    const Config _config;
+    Matrix<float> _state;
+    Matrix<float> _covariance;
 };
 
 } // namespace robotpilots::algorithm

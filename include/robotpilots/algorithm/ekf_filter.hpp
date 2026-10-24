@@ -57,10 +57,10 @@ public:
     [[nodiscard]] std::optional<float> InnovationSquared() const noexcept;
 
 private:
-    const Config config_;
-    Matrix<float> state_;
-    Matrix<float> covariance_;
-    std::optional<float> innovationSquared_;
+    const Config _config;
+    Matrix<float> _state;
+    Matrix<float> _covariance;
+    std::optional<float> _innovationSquared;
 };
 
 } // namespace robotpilots::algorithm

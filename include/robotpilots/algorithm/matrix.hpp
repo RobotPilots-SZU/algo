@@ -83,26 +83,26 @@ template <typename T>
 class Matrix
 {
 public:
-	Matrix() : rows_(0), cols_(0), data_{}
+	Matrix() : _rows(0), _cols(0), _data{}
 	{
 	}
 
-	Matrix(int rows, int cols) : rows_(rows), cols_(cols), data_{}
+	Matrix(int rows, int cols) : _rows(rows), _cols(cols), _data{}
 	{
-		data_.resize(Size());
+		_data.resize(Size());
 	}
 
-	Matrix(const Matrix& other) : rows_(other.rows_), cols_(other.cols_), data_{}
+	Matrix(const Matrix& other) : _rows(other._rows), _cols(other._cols), _data{}
 	{
-		data_.resize(other.Size());
-		etl::copy(other.data_.data(), other.data_.data() + other.Size(), data_.data());
+		_data.resize(other.Size());
+		etl::copy(other._data.data(), other._data.data() + other.Size(), _data.data());
 	}
 
 	Matrix(Matrix&& other) noexcept
-		: rows_(other.rows_), cols_(other.cols_), data_(etl::move(other.data_))
+		: _rows(other._rows), _cols(other._cols), _data(etl::move(other._data))
 	{
-		other.rows_ = 0;
-		other.cols_ = 0;
+		other._rows = 0;
+		other._cols = 0;
 	}
 
 	Matrix& operator=(const Matrix& other)
@@ -112,10 +112,10 @@ public:
 			return *this;
 		}
 
-		rows_ = other.rows_;
-		cols_ = other.cols_;
-		data_.resize(other.Size());
-		etl::copy(other.data_.data(), other.data_.data() + other.Size(), data_.data());
+		_rows = other._rows;
+		_cols = other._cols;
+		_data.resize(other.Size());
+		etl::copy(other._data.data(), other._data.data() + other.Size(), _data.data());
 		return *this;
 	}
 
@@ -126,11 +126,11 @@ public:
 			return *this;
 		}
 
-		rows_ = other.rows_;
-		cols_ = other.cols_;
-		data_ = etl::move(other.data_);
-		other.rows_ = 0;
-		other.cols_ = 0;
+		_rows = other._rows;
+		_cols = other._cols;
+		_data = etl::move(other._data);
+		other._rows = 0;
+		other._cols = 0;
 		return *this;
 	}
 
@@ -138,42 +138,42 @@ public:
 
 	int Rows() const
 	{
-		return rows_;
+		return _rows;
 	}
 
 	int Cols() const
 	{
-		return cols_;
+		return _cols;
 	}
 
 	std::size_t Size() const
 	{
-		return static_cast<std::size_t>(rows_) * static_cast<std::size_t>(cols_);
+		return static_cast<std::size_t>(_rows) * static_cast<std::size_t>(_cols);
 	}
 
 	bool Empty() const
 	{
-		return rows_ == 0 || cols_ == 0;
+		return _rows == 0 || _cols == 0;
 	}
 
 	T* Data()
 	{
-		return data_.data();
+		return _data.data();
 	}
 
 	const T* Data() const
 	{
-		return data_.data();
+		return _data.data();
 	}
 
 	T* operator[](int row)
 	{
-		return data_.data() + row * cols_;
+		return _data.data() + row * _cols;
 	}
 
 	const T* operator[](int row) const
 	{
-		return data_.data() + row * cols_;
+		return _data.data() + row * _cols;
 	}
 
 	Matrix& operator+=(const Matrix& other)
@@ -183,7 +183,7 @@ public:
 			return *this;
 		}
 
-		detail::AddInPlace(data_.data(), other.data_.data(), Size());
+		detail::AddInPlace(_data.data(), other._data.data(), Size());
 		return *this;
 	}
 
@@ -194,14 +194,14 @@ public:
 			return *this;
 		}
 
-		detail::SubInPlace(data_.data(), other.data_.data(), Size());
+		detail::SubInPlace(_data.data(), other._data.data(), Size());
 		return *this;
 	}
 
 	template <typename U>
 	Matrix& operator*=(const U& value)
 	{
-		detail::ScaleInPlace(data_.data(), static_cast<T>(value), Size());
+		detail::ScaleInPlace(_data.data(), static_cast<T>(value), Size());
 		return *this;
 	}
 
@@ -243,14 +243,14 @@ public:
 
 	Matrix operator*(const Matrix& other) const
 	{
-		if (cols_ != other.rows_)
+		if (_cols != other._rows)
 		{
 			return Matrix();
 		}
 
-		Matrix result(rows_, other.cols_);
-		detail::MultiplyInto(result.data_.data(), data_.data(), other.data_.data(),
-		                     rows_, cols_, other.cols_);
+		Matrix result(_rows, other._cols);
+		detail::MultiplyInto(result._data.data(), _data.data(), other._data.data(),
+		                     _rows, _cols, other._cols);
 		return result;
 	}
 
@@ -263,7 +263,7 @@ public:
 	Matrix Block(int startRow, int startCol, int blockRows, int blockCols) const
 	{
 		if (startRow < 0 || startCol < 0 || blockRows < 0 || blockCols < 0 ||
-			startRow + blockRows > rows_ || startCol + blockCols > cols_)
+			startRow + blockRows > _rows || startCol + blockCols > _cols)
 		{
 			return Matrix();
 		}
@@ -281,20 +281,20 @@ public:
 
 	Matrix Row(int row) const
 	{
-		return Block(row, 0, 1, cols_);
+		return Block(row, 0, 1, _cols);
 	}
 
 	Matrix Col(int col) const
 	{
-		return Block(0, col, rows_, 1);
+		return Block(0, col, _rows, 1);
 	}
 
 	Matrix Transposed() const
 	{
-		Matrix result(cols_, rows_);
-		for (int row = 0; row < rows_; ++row)
+		Matrix result(_cols, _rows);
+		for (int row = 0; row < _rows; ++row)
 		{
-			for (int col = 0; col < cols_; ++col)
+			for (int col = 0; col < _cols; ++col)
 			{
 				result[col][row] = (*this)[row][col];
 			}
@@ -305,7 +305,7 @@ public:
 	/// @brief 高斯-若尔当消元求逆, 非方阵或奇异返回空矩阵/零矩阵
 	Matrix Inverted() const
 	{
-		if (rows_ != cols_)
+		if (_rows != _cols)
 		{
 			return Matrix();
 		}
@@ -315,22 +315,22 @@ public:
 			return Matrix();
 		}
 
-		Matrix result(rows_, cols_);
-		Matrix augmented = Zeros<T>(rows_, cols_ * 2);
-		for (int row = 0; row < rows_; ++row)
+		Matrix result(_rows, _cols);
+		Matrix augmented = Zeros<T>(_rows, _cols * 2);
+		for (int row = 0; row < _rows; ++row)
 		{
-			for (int col = 0; col < cols_; ++col)
+			for (int col = 0; col < _cols; ++col)
 			{
 				augmented[row][col] = (*this)[row][col];
 			}
-			augmented[row][cols_ + row] = T(1);
+			augmented[row][_cols + row] = T(1);
 		}
 
-		for (int pivot = 0; pivot < rows_; ++pivot)
+		for (int pivot = 0; pivot < _rows; ++pivot)
 		{
 			int maxRow = pivot;
 			T maxValue = std::fabs(augmented[pivot][pivot]);
-			for (int row = pivot + 1; row < rows_; ++row)
+			for (int row = pivot + 1; row < _rows; ++row)
 			{
 				if (std::fabs(augmented[row][pivot]) > maxValue)
 				{
@@ -341,24 +341,24 @@ public:
 
 			if (maxValue < T(1e-9))
 			{
-				return Zeros<T>(rows_, cols_);
+				return Zeros<T>(_rows, _cols);
 			}
 
 			if (maxRow != pivot)
 			{
-				for (int col = 0; col < cols_ * 2; ++col)
+				for (int col = 0; col < _cols * 2; ++col)
 				{
 					std::swap(augmented[pivot][col], augmented[maxRow][col]);
 				}
 			}
 
 			const T divisor = augmented[pivot][pivot];
-			for (int col = pivot; col < cols_ * 2; ++col)
+			for (int col = pivot; col < _cols * 2; ++col)
 			{
 				augmented[pivot][col] /= divisor;
 			}
 
-			for (int row = 0; row < rows_; ++row)
+			for (int row = 0; row < _rows; ++row)
 			{
 				if (row == pivot)
 				{
@@ -366,18 +366,18 @@ public:
 				}
 
 				const T factor = augmented[row][pivot];
-				for (int col = pivot; col < cols_ * 2; ++col)
+				for (int col = pivot; col < _cols * 2; ++col)
 				{
 					augmented[row][col] -= factor * augmented[pivot][col];
 				}
 			}
 		}
 
-		for (int row = 0; row < rows_; ++row)
+		for (int row = 0; row < _rows; ++row)
 		{
-			for (int col = 0; col < cols_; ++col)
+			for (int col = 0; col < _cols; ++col)
 			{
-				result[row][col] = augmented[row][cols_ + col];
+				result[row][col] = augmented[row][_cols + col];
 			}
 		}
 		return result;
@@ -386,12 +386,12 @@ public:
 private:
 	bool SameShape(const Matrix& other) const
 	{
-		return rows_ == other.rows_ && cols_ == other.cols_;
+		return _rows == other._rows && _cols == other._cols;
 	}
 
-	int rows_;
-	int cols_;
-	etl::vector<T, 256> data_;
+	int _rows;
+	int _cols;
+	etl::vector<T, 256> _data;
 };
 
 #if defined(ALGO_ENABLE_ARM_MATH)

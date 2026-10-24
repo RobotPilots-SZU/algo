@@ -79,48 +79,48 @@ std::optional<Matrix<float>> InvertInnovation(const Matrix<float>& covariance)
 } // namespace
 
 Ekf::Ekf(Config config)
-    : config_(std::move(config)),
-      state_(config_.InitialState),
-      covariance_(config_.InitialCovariance)
+    : _config(std::move(config)),
+      _state(_config.InitialState),
+      _covariance(_config.InitialCovariance)
 {
-    const auto stateSize = state_.Rows();
-    const auto measurementSize = config_.MeasurementNoise.Rows();
+    const auto stateSize = _state.Rows();
+    const auto measurementSize = _config.MeasurementNoise.Rows();
     assert(stateSize > 0 && stateSize <= 16);
     assert(measurementSize > 0 && measurementSize <= 16);
-    RequireShape(state_, stateSize, 1);
-    RequireShape(covariance_, stateSize, stateSize);
-    RequireShape(config_.ProcessNoise, stateSize, stateSize);
-    RequireShape(config_.MeasurementNoise, measurementSize, measurementSize);
-    assert(config_.StateTransition && config_.MeasurementModel &&
-           config_.StateJacobian && config_.MeasurementJacobian);
-    assert(!config_.InnovationThreshold ||
-           (std::isfinite(*config_.InnovationThreshold) && *config_.InnovationThreshold >= 0.0f));
-    assert(config_.MinimumVariance.empty() ||
-           config_.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
-    for ([[maybe_unused]] const auto minimum : config_.MinimumVariance)
+    RequireShape(_state, stateSize, 1);
+    RequireShape(_covariance, stateSize, stateSize);
+    RequireShape(_config.ProcessNoise, stateSize, stateSize);
+    RequireShape(_config.MeasurementNoise, measurementSize, measurementSize);
+    assert(_config.StateTransition && _config.MeasurementModel &&
+           _config.StateJacobian && _config.MeasurementJacobian);
+    assert(!_config.InnovationThreshold ||
+           (std::isfinite(*_config.InnovationThreshold) && *_config.InnovationThreshold >= 0.0f));
+    assert(_config.MinimumVariance.empty() ||
+           _config.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
+    for ([[maybe_unused]] const auto minimum : _config.MinimumVariance)
     {
         assert(std::isfinite(minimum) && minimum >= 0.0f);
     }
-    ApplyVarianceFloor(covariance_, config_.MinimumVariance);
+    ApplyVarianceFloor(_covariance, _config.MinimumVariance);
 }
 
 void Ekf::Predict(float deltaTime, const Matrix<float>& control)
 {
     assert(std::isfinite(deltaTime) && deltaTime >= 0.0f);
-    const auto transition = config_.StateJacobian(state_, control, deltaTime);
-    auto predictedState = config_.StateTransition(state_, control, deltaTime);
-    RequireShape(transition, state_.Rows(), state_.Rows());
-    RequireShape(predictedState, state_.Rows(), 1);
-    auto predictedCovariance = transition * covariance_ * transition.Transposed() + config_.ProcessNoise;
-    ApplyVarianceFloor(predictedCovariance, config_.MinimumVariance);
-    state_ = std::move(predictedState);
-    covariance_ = std::move(predictedCovariance);
+    const auto transition = _config.StateJacobian(_state, control, deltaTime);
+    auto predictedState = _config.StateTransition(_state, control, deltaTime);
+    RequireShape(transition, _state.Rows(), _state.Rows());
+    RequireShape(predictedState, _state.Rows(), 1);
+    auto predictedCovariance = transition * _covariance * transition.Transposed() + _config.ProcessNoise;
+    ApplyVarianceFloor(predictedCovariance, _config.MinimumVariance);
+    _state = std::move(predictedState);
+    _covariance = std::move(predictedCovariance);
 }
 
 std::optional<Matrix<float>> Ekf::Update(const Matrix<float>& measurement)
 {
-    innovationSquared_.reset();
-    RequireShape(measurement, config_.MeasurementNoise.Rows(), 1);
+    _innovationSquared.reset();
+    RequireShape(measurement, _config.MeasurementNoise.Rows(), 1);
     etl::vector<int, 16> validIndices;
     for (int index = 0; index < measurement.Rows(); ++index)
     {
@@ -134,30 +134,30 @@ std::optional<Matrix<float>> Ekf::Update(const Matrix<float>& measurement)
         return std::nullopt;
     }
 
-    const auto expected = config_.MeasurementModel(state_);
-    const auto jacobian = config_.MeasurementJacobian(state_);
+    const auto expected = _config.MeasurementModel(_state);
+    const auto jacobian = _config.MeasurementJacobian(_state);
     RequireShape(expected, measurement.Rows(), 1);
-    RequireShape(jacobian, measurement.Rows(), state_.Rows());
+    RequireShape(jacobian, measurement.Rows(), _state.Rows());
 
     const auto count = static_cast<int>(validIndices.size());
-    auto observation = Zeros<float>(count, state_.Rows());
+    auto observation = Zeros<float>(count, _state.Rows());
     auto noise = Zeros<float>(count, count);
     auto innovation = Zeros<float>(count, 1);
     for (int row = 0; row < count; ++row)
     {
         const auto source = validIndices[row];
         innovation[row][0] = measurement[source][0] - expected[source][0];
-        for (int column = 0; column < state_.Rows(); ++column)
+        for (int column = 0; column < _state.Rows(); ++column)
         {
             observation[row][column] = jacobian[source][column];
         }
         for (int column = 0; column < count; ++column)
         {
-            noise[row][column] = config_.MeasurementNoise[source][validIndices[column]];
+            noise[row][column] = _config.MeasurementNoise[source][validIndices[column]];
         }
     }
 
-    const auto crossCovariance = covariance_ * observation.Transposed();
+    const auto crossCovariance = _covariance * observation.Transposed();
     const auto inverse = InvertInnovation(observation * crossCovariance + noise);
     if (!inverse)
     {
@@ -169,42 +169,42 @@ std::optional<Matrix<float>> Ekf::Update(const Matrix<float>& measurement)
     {
         return std::nullopt;
     }
-    innovationSquared_ = distance[0][0];
-    if (config_.InnovationThreshold && *innovationSquared_ > *config_.InnovationThreshold)
+    _innovationSquared = distance[0][0];
+    if (_config.InnovationThreshold && *_innovationSquared > *_config.InnovationThreshold)
     {
         return std::nullopt;
     }
 
     const auto gain = crossCovariance * *inverse;
     const auto correction = gain * innovation;
-    auto correctedState = config_.ApplyCorrection
-        ? config_.ApplyCorrection(state_, correction) : state_ + correction;
-    RequireShape(correctedState, state_.Rows(), 1);
-    const auto residualProjection = Eye<float>(state_.Rows()) - gain * observation;
+    auto correctedState = _config.ApplyCorrection
+        ? _config.ApplyCorrection(_state, correction) : _state + correction;
+    RequireShape(correctedState, _state.Rows(), 1);
+    const auto residualProjection = Eye<float>(_state.Rows()) - gain * observation;
     // Joseph 形式，独立于是否启用创新检验。
-    auto correctedCovariance = residualProjection * covariance_ * residualProjection.Transposed() +
+    auto correctedCovariance = residualProjection * _covariance * residualProjection.Transposed() +
         gain * noise * gain.Transposed();
     correctedCovariance += correctedCovariance.Transposed();
     correctedCovariance *= 0.5f;
-    ApplyVarianceFloor(correctedCovariance, config_.MinimumVariance);
-    state_ = std::move(correctedState);
-    covariance_ = std::move(correctedCovariance);
-    return state_;
+    ApplyVarianceFloor(correctedCovariance, _config.MinimumVariance);
+    _state = std::move(correctedState);
+    _covariance = std::move(correctedCovariance);
+    return _state;
 }
 
 const Matrix<float>& Ekf::State() const noexcept
 {
-    return state_;
+    return _state;
 }
 
 const Matrix<float>& Ekf::Covariance() const noexcept
 {
-    return covariance_;
+    return _covariance;
 }
 
 std::optional<float> Ekf::InnovationSquared() const noexcept
 {
-    return innovationSquared_;
+    return _innovationSquared;
 }
 
 } // namespace robotpilots::algorithm

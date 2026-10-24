@@ -81,57 +81,57 @@ std::optional<Matrix<float>> InvertInnovation(const Matrix<float>& covariance)
 } // namespace
 
 Kf::Kf(Config config)
-    : config_(std::move(config)),
-      state_(config_.InitialState),
-      covariance_(config_.InitialCovariance)
+    : _config(std::move(config)),
+      _state(_config.InitialState),
+      _covariance(_config.InitialCovariance)
 {
-    const auto stateSize = state_.Rows();
-    const auto measurementSize = config_.MeasurementModel.Rows();
+    const auto stateSize = _state.Rows();
+    const auto measurementSize = _config.MeasurementModel.Rows();
     assert(stateSize > 0 && stateSize <= 16);
     assert(measurementSize > 0 && measurementSize <= 16);
-    RequireShape(state_, stateSize, 1);
-    RequireShape(covariance_, stateSize, stateSize);
-    RequireShape(config_.StateTransition, stateSize, stateSize);
-    RequireShape(config_.ProcessNoise, stateSize, stateSize);
-    RequireShape(config_.MeasurementModel, measurementSize, stateSize);
-    RequireShape(config_.MeasurementNoise, measurementSize, measurementSize);
-    if (!config_.ControlTransition.Empty())
+    RequireShape(_state, stateSize, 1);
+    RequireShape(_covariance, stateSize, stateSize);
+    RequireShape(_config.StateTransition, stateSize, stateSize);
+    RequireShape(_config.ProcessNoise, stateSize, stateSize);
+    RequireShape(_config.MeasurementModel, measurementSize, stateSize);
+    RequireShape(_config.MeasurementNoise, measurementSize, measurementSize);
+    if (!_config.ControlTransition.Empty())
     {
-        assert(config_.ControlTransition.Cols() > 0 && config_.ControlTransition.Cols() <= 16);
-        RequireShape(config_.ControlTransition, stateSize, config_.ControlTransition.Cols());
+        assert(_config.ControlTransition.Cols() > 0 && _config.ControlTransition.Cols() <= 16);
+        RequireShape(_config.ControlTransition, stateSize, _config.ControlTransition.Cols());
     }
-    assert(config_.MinimumVariance.empty() ||
-           config_.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
-    for ([[maybe_unused]] const auto minimum : config_.MinimumVariance)
+    assert(_config.MinimumVariance.empty() ||
+           _config.MinimumVariance.size() == static_cast<std::size_t>(stateSize));
+    for ([[maybe_unused]] const auto minimum : _config.MinimumVariance)
     {
         assert(std::isfinite(minimum) && minimum >= 0.0f);
     }
-    ApplyVarianceFloor(covariance_, config_.MinimumVariance);
+    ApplyVarianceFloor(_covariance, _config.MinimumVariance);
 }
 
 void Kf::Predict(const Matrix<float>& control)
 {
-    auto predictedState = config_.StateTransition * state_;
-    if (!config_.ControlTransition.Empty())
+    auto predictedState = _config.StateTransition * _state;
+    if (!_config.ControlTransition.Empty())
     {
-        RequireShape(control, config_.ControlTransition.Cols(), 1);
-        predictedState += config_.ControlTransition * control;
+        RequireShape(control, _config.ControlTransition.Cols(), 1);
+        predictedState += _config.ControlTransition * control;
     }
     else
     {
         assert(control.Empty());
     }
 
-    auto predictedCovariance = config_.StateTransition * covariance_ *
-        config_.StateTransition.Transposed() + config_.ProcessNoise;
-    ApplyVarianceFloor(predictedCovariance, config_.MinimumVariance);
-    state_ = std::move(predictedState);
-    covariance_ = std::move(predictedCovariance);
+    auto predictedCovariance = _config.StateTransition * _covariance *
+        _config.StateTransition.Transposed() + _config.ProcessNoise;
+    ApplyVarianceFloor(predictedCovariance, _config.MinimumVariance);
+    _state = std::move(predictedState);
+    _covariance = std::move(predictedCovariance);
 }
 
 std::optional<Matrix<float>> Kf::Update(const Matrix<float>& measurement)
 {
-    RequireShape(measurement, config_.MeasurementModel.Rows(), 1);
+    RequireShape(measurement, _config.MeasurementModel.Rows(), 1);
     etl::vector<int, 16> validIndices;
     for (int index = 0; index < measurement.Rows(); ++index)
     {
@@ -146,24 +146,24 @@ std::optional<Matrix<float>> Kf::Update(const Matrix<float>& measurement)
     }
 
     const auto count = static_cast<int>(validIndices.size());
-    auto observation = Zeros<float>(count, state_.Rows());
+    auto observation = Zeros<float>(count, _state.Rows());
     auto noise = Zeros<float>(count, count);
     auto values = Zeros<float>(count, 1);
     for (int row = 0; row < count; ++row)
     {
         const auto source = validIndices[row];
         values[row][0] = measurement[source][0];
-        for (int column = 0; column < state_.Rows(); ++column)
+        for (int column = 0; column < _state.Rows(); ++column)
         {
-            observation[row][column] = config_.MeasurementModel[source][column];
+            observation[row][column] = _config.MeasurementModel[source][column];
         }
         for (int column = 0; column < count; ++column)
         {
-            noise[row][column] = config_.MeasurementNoise[source][validIndices[column]];
+            noise[row][column] = _config.MeasurementNoise[source][validIndices[column]];
         }
     }
 
-    const auto crossCovariance = covariance_ * observation.Transposed();
+    const auto crossCovariance = _covariance * observation.Transposed();
     const auto inverse = InvertInnovation(observation * crossCovariance + noise);
     if (!inverse)
     {
@@ -171,27 +171,27 @@ std::optional<Matrix<float>> Kf::Update(const Matrix<float>& measurement)
     }
 
     const auto gain = crossCovariance * *inverse;
-    auto correctedState = state_ + gain * (values - observation * state_);
-    const auto residualProjection = Eye<float>(state_.Rows()) - gain * observation;
+    auto correctedState = _state + gain * (values - observation * _state);
+    const auto residualProjection = Eye<float>(_state.Rows()) - gain * observation;
     // Joseph 形式，避免简单相减破坏协方差的半正定性。
-    auto correctedCovariance = residualProjection * covariance_ * residualProjection.Transposed() +
+    auto correctedCovariance = residualProjection * _covariance * residualProjection.Transposed() +
         gain * noise * gain.Transposed();
     correctedCovariance += correctedCovariance.Transposed();
     correctedCovariance *= 0.5f;
-    ApplyVarianceFloor(correctedCovariance, config_.MinimumVariance);
-    state_ = std::move(correctedState);
-    covariance_ = std::move(correctedCovariance);
-    return state_;
+    ApplyVarianceFloor(correctedCovariance, _config.MinimumVariance);
+    _state = std::move(correctedState);
+    _covariance = std::move(correctedCovariance);
+    return _state;
 }
 
 const Matrix<float>& Kf::State() const noexcept
 {
-    return state_;
+    return _state;
 }
 
 const Matrix<float>& Kf::Covariance() const noexcept
 {
-    return covariance_;
+    return _covariance;
 }
 
 } // namespace robotpilots::algorithm

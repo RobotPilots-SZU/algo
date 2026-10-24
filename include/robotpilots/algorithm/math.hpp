@@ -94,13 +94,13 @@ constexpr T InvSqrt(T value)
 	static_assert(std::is_same_v<T, float>, "InvSqrt currently supports float only");
 	union Bits
 	{
-		std::int32_t integer;
-		float real;
+		std::int32_t Integer;
+		float Real;
 	} bits{};
 
-	bits.real = value;
-	bits.integer = 0x5f3759df - (bits.integer >> 1);
-	return bits.real * (1.5f - 0.5f * value * bits.real * bits.real);
+	bits.Real = value;
+	bits.Integer = 0x5f3759df - (bits.Integer >> 1);
+	return bits.Real * (1.5f - 0.5f * value * bits.Real * bits.Real);
 }
 
 /**
