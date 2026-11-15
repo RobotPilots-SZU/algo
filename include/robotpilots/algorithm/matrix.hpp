@@ -3,27 +3,36 @@
  * @brief 定长矩阵库
  *
  * 主模板是纯头文件的通用实现, 不依赖任何硬件加速库.
- * 定义 ALGO_ENABLE_ARM_MATH 时, Matrix<float> 使用 CMSIS-DSP 的显式特化,
+ * 定义 ALGO_ENABLE_ARM_MATH 时, Matrix<float, N> 使用 CMSIS-DSP 的显式特化.
+ *
+ * 模板参数 N 为「元素总数上限」(行 x 列), 必须由使用方显式给出:
  */
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
 #include <etl/algorithm.h>
 #include <etl/vector.h>
 
+#if defined(ALGO_ENABLE_ARM_MATH)
+#include "arm_math.h"
+#endif
+
 namespace robotpilots::algorithm
 {
 
-template <typename T>
+/// @brief 元素类型 T, 元素总数上限 N(行 x 列)
+template <typename T, std::size_t N>
 class Matrix;
 
-template <typename T>
-Matrix<T> Zeros(int rows, int cols);
+template <typename T, std::size_t N>
+Matrix<T, N> Zeros(int rows, int cols);
 
 namespace detail
 {
@@ -78,8 +87,9 @@ void MultiplyInto(T* result, const T* left, const T* right, int rows, int inner,
 /**
  * @brief 通用矩阵(纯头文件实现)
  * @tparam 元素类型T
+ * @tparam N 元素总数上限(行 x 列)
  */
-template <typename T>
+template <typename T, std::size_t N>
 class Matrix
 {
 public:
@@ -391,7 +401,7 @@ private:
 
 	int _rows;
 	int _cols;
-	etl::vector<T, 256> _data;
+	etl::vector<T, N> _data;
 };
 
 #if defined(ALGO_ENABLE_ARM_MATH)
@@ -402,24 +412,88 @@ namespace detail
 /// @brief CMSIS 矩阵描述符的预留存储大小
 constexpr std::size_t ArmMatrixStorageSize = 32;
 
+/// @brief 把预留的对齐存储当作 CMSIS 矩阵描述符使用
+inline arm_matrix_instance_f32& AsArm(void* storage)
+{
+	return *static_cast<arm_matrix_instance_f32*>(storage);
+}
+
+inline const arm_matrix_instance_f32& AsArm(const void* storage)
+{
+	return *static_cast<const arm_matrix_instance_f32*>(storage);
+}
+
 } // namespace detail
 
 /**
  * @brief CMSIS-DSP 加速的 float 矩阵特化
  *
- * 用一块对齐的字节数组承载 arm_matrix_instance_f32, 头文件不引入 arm_math.h,
- * 所有成员函数在 src/kf_filter.cpp 中定义.
+ * N 是模板参数, 成员函数无法再放到 .cpp 中按任意 N 实例化, 因此内联在本头文件,
+ * 并在 ALGO_ENABLE_ARM_MATH 时引入 arm_math.h; 类内仍用对齐字节数组承载描述符.
  */
-template <>
-class Matrix<float>
+template <std::size_t N>
+class Matrix<float, N>
 {
 public:
-	Matrix();
-	Matrix(int rows, int cols);
-	Matrix(const Matrix& other);
-	Matrix(Matrix&& other) noexcept;
-	Matrix& operator=(const Matrix& other);
-	Matrix& operator=(Matrix&& other) noexcept;
+	Matrix() : rows_(0), cols_(0), data_{}
+	{
+		SyncArm();
+	}
+
+	Matrix(int rows, int cols) : rows_(rows), cols_(cols), data_{}
+	{
+		data_.resize(Size());
+		SyncArm();
+	}
+
+	Matrix(const Matrix& other) : rows_(other.rows_), cols_(other.cols_), data_{}
+	{
+		data_.resize(other.Size());
+		etl::copy(other.data_.data(), other.data_.data() + other.Size(), data_.data());
+		SyncArm();
+	}
+
+	Matrix(Matrix&& other) noexcept
+		: rows_(other.rows_), cols_(other.cols_), data_(etl::move(other.data_))
+	{
+		SyncArm();
+		other.rows_ = 0;
+		other.cols_ = 0;
+		other.SyncArm();
+	}
+
+	Matrix& operator=(const Matrix& other)
+	{
+		if (this == &other)
+		{
+			return *this;
+		}
+
+		rows_ = other.rows_;
+		cols_ = other.cols_;
+		data_.resize(other.Size());
+		etl::copy(other.data_.data(), other.data_.data() + other.Size(), data_.data());
+		SyncArm();
+		return *this;
+	}
+
+	Matrix& operator=(Matrix&& other) noexcept
+	{
+		if (this == &other)
+		{
+			return *this;
+		}
+
+		rows_ = other.rows_;
+		cols_ = other.cols_;
+		data_ = etl::move(other.data_);
+		SyncArm();
+		other.rows_ = 0;
+		other.cols_ = 0;
+		other.SyncArm();
+		return *this;
+	}
+
 	~Matrix() = default;
 
 	int Rows() const
@@ -462,26 +536,183 @@ public:
 		return data_.data() + row * cols_;
 	}
 
-	Matrix& operator+=(const Matrix& other);
-	Matrix& operator-=(const Matrix& other);
-	Matrix& operator*=(float value);
-	Matrix& operator/=(float value);
+	Matrix& operator+=(const Matrix& other)
+	{
+		if (rows_ != other.rows_ || cols_ != other.cols_)
+		{
+			return *this;
+		}
 
-	Matrix operator+(const Matrix& other) const;
-	Matrix operator-(const Matrix& other) const;
-	Matrix operator*(const Matrix& other) const;
-	Matrix operator/(const Matrix& other) const;
+		if (arm_mat_add_f32(&detail::AsArm(ArmBuffer()), &detail::AsArm(other.ArmBuffer()),
+		                    &detail::AsArm(ArmBuffer())) != ARM_MATH_SUCCESS)
+		{
+			detail::AddInPlace(data_.data(), other.data_.data(), Size());
+		}
+		return *this;
+	}
 
-	Matrix Block(int startRow, int startCol, int blockRows, int blockCols) const;
-	Matrix Row(int row) const;
-	Matrix Col(int col) const;
+	Matrix& operator-=(const Matrix& other)
+	{
+		if (rows_ != other.rows_ || cols_ != other.cols_)
+		{
+			return *this;
+		}
 
-	Matrix Transposed() const;
-	Matrix Inverted() const;
+		if (arm_mat_sub_f32(&detail::AsArm(ArmBuffer()), &detail::AsArm(other.ArmBuffer()),
+		                    &detail::AsArm(ArmBuffer())) != ARM_MATH_SUCCESS)
+		{
+			detail::SubInPlace(data_.data(), other.data_.data(), Size());
+		}
+		return *this;
+	}
+
+	Matrix& operator*=(float value)
+	{
+		if (arm_mat_scale_f32(&detail::AsArm(ArmBuffer()), value,
+		                      &detail::AsArm(ArmBuffer())) != ARM_MATH_SUCCESS)
+		{
+			detail::ScaleInPlace(data_.data(), value, Size());
+		}
+		return *this;
+	}
+
+	Matrix& operator/=(float value)
+	{
+		constexpr float epsilon = 1e-6f;
+		if (std::abs(value) < epsilon)
+		{
+			return *this;
+		}
+
+		return *this *= static_cast<float>(1) / value;
+	}
+
+	Matrix operator+(const Matrix& other) const
+	{
+		if (rows_ != other.rows_ || cols_ != other.cols_)
+		{
+			return Matrix();
+		}
+
+		Matrix result(*this);
+		result += other;
+		return result;
+	}
+
+	Matrix operator-(const Matrix& other) const
+	{
+		if (rows_ != other.rows_ || cols_ != other.cols_)
+		{
+			return Matrix();
+		}
+
+		Matrix result(*this);
+		result -= other;
+		return result;
+	}
+
+	Matrix operator*(const Matrix& other) const
+	{
+		if (cols_ != other.rows_)
+		{
+			return Matrix();
+		}
+
+		Matrix result(rows_, other.cols_);
+		if (arm_mat_mult_f32(&detail::AsArm(ArmBuffer()), &detail::AsArm(other.ArmBuffer()),
+		                     &detail::AsArm(result.ArmBuffer())) != ARM_MATH_SUCCESS)
+		{
+			detail::MultiplyInto(result.data_.data(), data_.data(), other.data_.data(),
+			                     rows_, cols_, other.cols_);
+		}
+		return result;
+	}
+
+	Matrix operator/(const Matrix& other) const
+	{
+		Matrix inverse = other.Inverted();
+		return inverse.Empty() ? Matrix() : *this * inverse;
+	}
+
+	Matrix Block(int startRow, int startCol, int blockRows, int blockCols) const
+	{
+		if (startRow < 0 || startCol < 0 || blockRows < 0 || blockCols < 0 ||
+			startRow + blockRows > rows_ || startCol + blockCols > cols_)
+		{
+			return Matrix();
+		}
+
+		Matrix result(blockRows, blockCols);
+		for (int row = 0; row < blockRows; ++row)
+		{
+			for (int col = 0; col < blockCols; ++col)
+			{
+				result[row][col] = (*this)[startRow + row][startCol + col];
+			}
+		}
+		return result;
+	}
+
+	Matrix Row(int row) const
+	{
+		return Block(row, 0, 1, cols_);
+	}
+
+	Matrix Col(int col) const
+	{
+		return Block(0, col, rows_, 1);
+	}
+
+	Matrix Transposed() const
+	{
+		Matrix result(cols_, rows_);
+		if (arm_mat_trans_f32(&detail::AsArm(ArmBuffer()),
+		                      &detail::AsArm(result.ArmBuffer())) != ARM_MATH_SUCCESS)
+		{
+			for (int row = 0; row < rows_; ++row)
+			{
+				for (int col = 0; col < cols_; ++col)
+				{
+					result[col][row] = (*this)[row][col];
+				}
+			}
+		}
+		return result;
+	}
+
+	Matrix Inverted() const
+	{
+		if (rows_ != cols_)
+		{
+			return Matrix();
+		}
+
+		Matrix result(rows_, cols_);
+		arm_matrix_instance_f32 destination;
+		arm_mat_init_f32(&destination, static_cast<uint16_t>(rows_), static_cast<uint16_t>(cols_),
+		                 result.data_.data());
+
+		if (arm_mat_inverse_f32(&detail::AsArm(ArmBuffer()), &destination) != ARM_MATH_SUCCESS)
+		{
+			return Zeros<float, N>(rows_, cols_);
+		}
+
+		result.SyncArm();
+		return result;
+	}
 
 private:
 	/// @brief 让 CMSIS 描述符指向当前数据缓冲区
-	void SyncArm();
+	void SyncArm()
+	{
+		static_assert(sizeof(arm_matrix_instance_f32) <= detail::ArmMatrixStorageSize,
+		              "CMSIS matrix descriptor exceeds fixed storage");
+		static_assert(alignof(arm_matrix_instance_f32) <= alignof(std::max_align_t),
+		              "CMSIS matrix descriptor alignment exceeds fixed storage");
+
+		arm_mat_init_f32(&detail::AsArm(ArmBuffer()), static_cast<uint16_t>(rows_),
+		                 static_cast<uint16_t>(cols_), data_.data());
+	}
 
 	void* ArmBuffer()
 	{
@@ -495,32 +726,32 @@ private:
 
 	int rows_;
 	int cols_;
-	etl::vector<float, 256> data_;
+	etl::vector<float, N> data_;
 	alignas(std::max_align_t) std::array<std::uint8_t, detail::ArmMatrixStorageSize> armBuffer_{};
 };
 
 #endif // ALGO_ENABLE_ARM_MATH
 
-template <typename T>
-Matrix<T> Zeros(int rows, int cols)
+template <typename T, std::size_t N>
+Matrix<T, N> Zeros(int rows, int cols)
 {
-	Matrix<T> result(rows, cols);
+	Matrix<T, N> result(rows, cols);
 	etl::fill(result.Data(), result.Data() + result.Size(), T(0));
 	return result;
 }
 
-template <typename T>
-Matrix<T> Ones(int rows, int cols)
+template <typename T, std::size_t N>
+Matrix<T, N> Ones(int rows, int cols)
 {
-	Matrix<T> result(rows, cols);
+	Matrix<T, N> result(rows, cols);
 	etl::fill(result.Data(), result.Data() + result.Size(), T(1));
 	return result;
 }
 
-template <typename T>
-Matrix<T> Eye(int dimension)
+template <typename T, std::size_t N>
+Matrix<T, N> Eye(int dimension)
 {
-	Matrix<T> result = Zeros<T>(dimension, dimension);
+	Matrix<T, N> result = Zeros<T, N>(dimension, dimension);
 	for (int i = 0; i < dimension; ++i)
 	{
 		result[i][i] = T(1);
@@ -528,14 +759,14 @@ Matrix<T> Eye(int dimension)
 	return result;
 }
 
-template <typename T>
-Matrix<T> Trans(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+Matrix<T, N> Trans(const Matrix<T, N>& matrix)
 {
 	return matrix.Transposed();
 }
 
-template <typename T>
-float Trace(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+float Trace(const Matrix<T, N>& matrix)
 {
 	if (matrix.Rows() != matrix.Cols())
 	{
@@ -550,8 +781,8 @@ float Trace(const Matrix<T>& matrix)
 	return result;
 }
 
-template <typename T>
-float Norm(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+float Norm(const Matrix<T, N>& matrix)
 {
 	if (!std::is_floating_point_v<T> || (matrix.Rows() != 1 && matrix.Cols() != 1))
 	{
@@ -566,21 +797,21 @@ float Norm(const Matrix<T>& matrix)
 	return std::sqrt(sum);
 }
 
-template <typename T>
-Matrix<T> Inv(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+Matrix<T, N> Inv(const Matrix<T, N>& matrix)
 {
 	return matrix.Inverted();
 }
 
-template <typename T>
-Matrix<T> Hat(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+Matrix<T, N> Hat(const Matrix<T, N>& matrix)
 {
 	if (matrix.Rows() != 3 || matrix.Cols() != 1)
 	{
-		return Matrix<T>();
+		return Matrix<T, N>();
 	}
 
-	Matrix<T> result(3, 3);
+	Matrix<T, N> result(3, 3);
 	result[0][1] = -matrix[2][0];
 	result[0][2] = matrix[1][0];
 	result[1][0] = matrix[2][0];
@@ -590,23 +821,23 @@ Matrix<T> Hat(const Matrix<T>& matrix)
 	return result;
 }
 
-template <typename T>
-Matrix<T> Vee(const Matrix<T>& matrix)
+template <typename T, std::size_t N>
+Matrix<T, N> Vee(const Matrix<T, N>& matrix)
 {
 	if (matrix.Rows() != 3 || matrix.Cols() != 3)
 	{
-		return Matrix<T>();
+		return Matrix<T, N>();
 	}
 
-	Matrix<T> result(3, 1);
+	Matrix<T, N> result(3, 1);
 	result[0][0] = matrix[2][1];
 	result[1][0] = matrix[0][2];
 	result[2][0] = matrix[1][0];
 	return result;
 }
 
-template <typename T>
-Matrix<T> Cross(const Matrix<T>& left, const Matrix<T>& right)
+template <typename T, std::size_t N>
+Matrix<T, N> Cross(const Matrix<T, N>& left, const Matrix<T, N>& right)
 {
 	return Hat(left) * right;
 }
